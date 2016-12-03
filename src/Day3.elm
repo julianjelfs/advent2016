@@ -8,10 +8,8 @@ validTriangle sides =
             a + b > c
         _ -> False
 
-numberOfValidTriangles triangles =
-    triangles
-        |> filter validTriangle
-        |> length
+numberOfValidTriangles =
+    filter validTriangle >> length
 
 numberOfValidVerticalTriangles =
     processTriple 0 raw
