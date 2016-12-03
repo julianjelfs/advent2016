@@ -25,20 +25,16 @@ newDirection turn dir =
         _ -> dir
 
 applyInstruction (dir, n) state =
-    let
-        s =
-            { state | direction = newDirection dir state.direction }
-    in
-        repeat n 0
-            |>
-                foldl (\_ s ->
-                    case s.direction of
-                        0 -> move s (0, 1)
-                        1 -> move s (1, 0)
-                        2 -> move s (0, -1)
-                        3 -> move s (-1, 0)
-                        _ -> s
-                ) s
+    repeat n 0
+        |>
+            foldl (\_ s ->
+                case s.direction of
+                    0 -> move s (0, 1)
+                    1 -> move s (1, 0)
+                    2 -> move s (0, -1)
+                    3 -> move s (-1, 0)
+                    _ -> s
+            ) { state | direction = newDirection dir state.direction }
 
 move state (x, y) =
     let
