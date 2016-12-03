@@ -13,20 +13,33 @@ instructions =
     raw
         |> map toList
 
-left = fromList [1,4,7]
-right = fromList [3,6,9]
-top = fromList [1,2,3]
-bottom = fromList [7,8,9]
-
+left = fromList [1,2,5,10,13]
+right = fromList [1,4,9,12,13]
+top = fromList [5,2,1,4,9]
+bottom = fromList [5,10,13,12,9]
 
 processCommands: Char -> Int -> Int
 processCommands c pos =
-    case c of
-        'R' -> if member pos right then pos else pos + 1
-        'L' -> if member pos left then pos else pos - 1
-        'U' -> if member pos top then pos else pos - 3
-        'D' -> if member pos bottom then pos else pos + 3
-        _ -> pos
+    let
+        down =
+            if pos >= 2 && pos <= 9 then 4 else 2
+        up =
+            if pos >= 5 && pos <= 12 then 4 else 2
+    in
+        case c of
+            'R' -> if member pos right then pos else pos + 1
+            'L' -> if member pos left then pos else pos - 1
+            'U' -> if member pos top then pos else pos - up
+            'D' -> if member pos bottom then pos else pos + down
+            _ -> pos
+
+toCode n =
+    case n of
+        10 -> "A"
+        11 -> "B"
+        12 -> "C"
+        13 -> "D"
+        _ -> toString n
 
 getNumber: List Char -> State -> State
 getNumber commands state =
@@ -34,7 +47,7 @@ getNumber commands state =
         code =
             state.code ++ ( commands
                 |> foldl processCommands state.pos
-                |> toString )
+                |> toCode )
     in
         { state |  code = code }
 
