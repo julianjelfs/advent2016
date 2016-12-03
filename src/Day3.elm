@@ -1,6 +1,6 @@
 module Day3 exposing (..)
 
-import List exposing (concat, concatMap, filter, filterMap, length, sort)
+import List exposing (concat, concatMap, drop, filter, filterMap, length, map3, sort, take)
 
 validTriangle sides =
     case sides |> sort of
@@ -8,11 +8,32 @@ validTriangle sides =
             a + b > c
         _ -> False
 
-answer =
+numberOfValidTriangles triangles =
+    triangles |> filter validTriangle
+        |> length
+
+numberOfValidVerticalTriangles =
+    processTriple 0 raw
+
+processTriple total triangles =
+    let
+
+    --need to split the triple into three lists before I can map3 them
+{-        n =
+            take 3 triangles
+                |> (map3 (\a b c -> [a, b, c]))
+                |> numberOfValidTriangles
+                |> (+) total-}
+
+        tail = drop 3 triangles
+    in
+        case tail of
+            [] -> total
+            _ -> processTriple 0 tail
+
+raw =
     [raw1, raw2, raw3, raw4, raw5, raw6, raw7, raw8]
         |> concat
-        |> filter validTriangle
-        |> length
 
 raw1 =
   [
