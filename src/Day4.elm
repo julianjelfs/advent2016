@@ -13,12 +13,10 @@ type alias Room =
 
 re = regex "^(.*)-([0-9]*)\\[([a-z]{5})\\]$"
 
-frequencies: String -> Dict Char Int
-frequencies str =
-    str
-        |> toList
-        |> filter (\c -> c /= '-')
-        |> foldl
+frequencies =
+    toList
+        >> filter (\c -> c /= '-')
+        >> foldl
             (\c d ->
                 case Dict.member c d of
                     True -> update c (\mv -> Maybe.map (\v -> v + 1) mv) d
