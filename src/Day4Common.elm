@@ -1,17 +1,10 @@
-module Day4 exposing (..)
+module Day4Common exposing (input, parseRoom, validRoom)
 
 import List exposing (concat, concatMap, filter, filterMap, foldl, map, reverse, sortWith, sum, take)
 import Regex exposing (..)
 import Dict exposing (Dict, empty, insert, update)
 import String exposing (fromList, toList)
 import Tuple exposing (first)
-
-type alias Room =
-    { name: String
-    , sectorId: Int
-    , checksum: String }
-
-re = regex "^(.*)-([0-9]*)\\[([a-z]{5})\\]$"
 
 frequencies =
     toList
@@ -23,16 +16,6 @@ frequencies =
                     False -> insert c 1 d)
             empty
 
-parseRoom str =
-    let
-        matches = find All re str
-            |> concatMap .submatches
-            |> map (Maybe.withDefault "")
-    in
-        case matches of
-            name :: sectorId :: checksum :: [] ->
-               Just (Room name (Result.withDefault 0 (String.toInt sectorId)) checksum)
-            _ -> Nothing
 
 compareFrequencyTuple (c, n) (c_, n_) =
     case compare n n_ of
@@ -50,15 +33,23 @@ checksumFromName =
 
 validRoom room =
     checksumFromName room.name == room.checksum
+type alias Room =
+    { name: String
+    , sectorId: Int
+    , checksum: String }
 
-getTheAnswer =
-    filterMap parseRoom
-        >> filter validRoom
-        >> map .sectorId
-        >> sum
+re = regex "^(.*)-([0-9]*)\\[([a-z]{5})\\]$"
 
-partOneAnswer =
-    getTheAnswer input
+parseRoom str =
+    let
+        matches = find All re str
+            |> concatMap .submatches
+            |> map (Maybe.withDefault "")
+    in
+        case matches of
+            name :: sectorId :: checksum :: [] ->
+               Just (Room name (Result.withDefault 0 (String.toInt sectorId)) checksum)
+            _ -> Nothing
 
 input =
     concat [input1, input2, input3, input4, input5]
