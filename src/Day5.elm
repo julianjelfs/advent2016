@@ -3,6 +3,7 @@ module Day5 exposing (..)
 import MD5 exposing (..)
 import Array exposing (..)
 import String exposing (toInt, length, fromList)
+import Debug exposing (log)
 
 input = "reyedfim"
 
@@ -24,7 +25,7 @@ crack n pw =
 validPos s =
     case s of
         Ok n ->
-            case (n >= 0 && n <= 7, n) of
+            case n >= 0 && n <= 7 of
                 True -> Just n
                 False -> Nothing
         Err _ -> Nothing
@@ -32,7 +33,7 @@ validPos s =
 validCode slots n c =
     case get n slots of
         Nothing -> False
-        Just s -> s == "_" || s /= c
+        Just s -> s == "_"
 
 slotsFilled slots =
     filter (\s -> s == "_") slots
@@ -51,17 +52,17 @@ crack2 n slots =
             True ->
                 case validPos pos of
                     Nothing -> crack2 (n + 1) slots
-                    Just n ->
-                        case validCode slots n code of
+                    Just i ->
+                        case validCode slots i code of
                             False -> crack2 (n + 1) slots
                             True ->
                                 let
-                                    updateSlots = set n code slots
+                                    updated = set i code slots
                                 in
-                                    case slotsFilled updateSlots of
+                                    case slotsFilled updated of
                                         True ->
-                                            updateSlots
+                                            updated
                                                 |> toList
                                                 |> (List.foldl (++) "")
-                                        _ -> crack2 (n + 1) updateSlots
+                                        _ -> crack2 (n + 1) updated
 
