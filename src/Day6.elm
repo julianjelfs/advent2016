@@ -11,7 +11,7 @@ frequencies =
 highestFreq =
     Dict.toList
         >> sortBy Tuple.second
-        >> List.reverse
+        -->> List.reverse   --uncomment for part one
         >> List.head
         >> Maybe.withDefault ('a', 0)
         >> Tuple.first
