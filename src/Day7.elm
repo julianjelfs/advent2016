@@ -1,5 +1,38 @@
 module Day7 exposing (..)
 
+import Regex exposing (..)
+
+containsABBA abba chars =
+    case List.take 4 chars of
+        one :: two :: three :: four :: [] ->
+            containsABBA
+                (one == four && two == three && one /= two)
+                (List.drop 4 chars)
+        _ -> abba
+
+
+re = regex "(\\[[a-z]*\\])"
+
+processAddress address =
+    let
+        (excls, incls) =
+            split All re address
+                |> List.partition (\s -> String.left 1 s == "[")
+
+        incFn = String.toList >> (containsABBA False)
+        exFn = String.toList >> (containsABBA False) >> not
+    in
+        case List.any incFn incls
+            && List.all exFn excls of
+            True -> Just address
+            False -> Nothing
+
+solution =
+    raw
+        |> List.filterMap processAddress
+        |> List.length
+
+
 raw =
     List.concat [ raw1, raw2, raw3, raw4, raw5, raw6, raw7, raw8, raw9, raw10 ]
 
@@ -12,7 +45,7 @@ raw1 =
     , "jlzynnkpwqyjvqcmcbz[fdjxnwkoqiquvbvo]bgkxfhztgjyyrcquoiv[xetgnqvwtdiuyiyv]zyfprefpmvxzauur"
     , "vjqhodfzrrqjshbhx[lezezbbswydnjnz]ejcflwytgzvyigz[hjdilpgdyzfkloa]mxtkrysovvotkuyekba"
     , "xjmkkppyuxybkmzya[jbmofazcbdwzameos]skmpycixjqsagnzwmy"
-    , "zeebynirxqrjbdqzjav[cawghcfvfeefkmx]xqcdkvawumyayfnq[qhhwzlwjvjpvyavtm]sbnvwssglfpyacfbua[wpbknuubmsjjbekkfy]icimffaoqghdpvsbx"
+    , "zeebynirxqrjbdqzjav[cawghcfvfeefkmxk]xqcdkvawumyayfnq[qhhwzlwjvjpvyavtm]sbnvwssglfpyacfbua[wpbknuubmsjjbekkfy]icimffaoqghdpvsbx"
     , "enupgggxsmwvfdljoaj[qlfmrciiyljngimjh]qkjawvmtnvkidcclfay[bllphejvluylyfzyvli]heboydfsgafkqoi"
     , "ottpscfbgoiyfri[iwzhojzrpzuinumuwd]orfroqlcemumqbqqrea"
     , "zhrhvyfxxcsdpris[xdqecoqujrnqbgla]bpwibmrkcfbzigf[rlqtqykdltcpusvc]ybtsglkxrhucxwv"
