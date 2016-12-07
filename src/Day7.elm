@@ -1,14 +1,18 @@
 module Day7 exposing (..)
 
 import Regex exposing (..)
+import Debug exposing (log)
 
 containsABBA abba chars =
-    case List.take 4 chars of
-        one :: two :: three :: four :: [] ->
-            containsABBA
-                (one == four && two == three && one /= two)
-                (List.drop 4 chars)
-        _ -> abba
+    if abba then
+        abba
+    else
+        case List.take 4 chars of
+            one :: two :: three :: four :: [] ->
+                containsABBA
+                    (one == four && two == three && one /= two)
+                    (List.drop 1 chars)
+            _ -> abba
 
 
 re = regex "(\\[[a-z]*\\])"
@@ -27,7 +31,7 @@ processAddress address =
             True -> Just address
             False -> Nothing
 
-solution =
+solution () =
     raw
         |> List.filterMap processAddress
         |> List.length
