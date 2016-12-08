@@ -4,10 +4,9 @@ import List exposing (head, range, map, concatMap, filter, foldl, length)
 import String exposing (left, right, toInt, words)
 
 getPixel: (Int, Int) -> List Pixel -> Maybe Pixel
-getPixel (x, y) grid =
-    grid
-        |> filter (\(x1, y1, _) -> x1 == x && y1 == y)
-        |> head
+getPixel (x, y) =
+    filter (\(x1, y1, _) -> x1 == x && y1 == y)
+        >> head
 
 initialGrid: List Pixel
 initialGrid =
@@ -61,14 +60,13 @@ lit: Pixel -> Bool
 lit (_, _, l) =
     l
 
-rectangle: List Pixel -> Int -> Int -> List Pixel
-rectangle grid x y =
-    grid
-        |> map (\(x1, y1, l) ->
-            if x1 < x && y1 < y then
-                (x1, y1, True)
-            else
-                (x1, y1, l))
+rectangle: Int -> Int -> List Pixel -> List Pixel
+rectangle x y =
+    map (\(x1, y1, l) ->
+        if x1 < x && y1 < y then
+            (x1, y1, True)
+        else
+            (x1, y1, l))
 
 constrainedInc: Int -> Int -> Int -> Int
 constrainedInc curr inc max =
@@ -89,26 +87,25 @@ incrementY (x, y, lit) n =
     (x, constrainedInc y n 5, lit)
 
 
-rotate: List Pixel -> Int -> Int -> (Int -> Int -> Int -> Bool) -> (Pixel -> Int -> Pixel) -> List Pixel
-rotate grid index n matcher incrementer =
-    grid
-        |> map (\(x, y, lit) ->
-            if matcher x y index then
-                incrementer (x, y, lit) n
-            else
-                (x, y, lit))
+rotate: Int -> Int -> (Int -> Int -> Int -> Bool) -> (Pixel -> Int -> Pixel) -> List Pixel -> List Pixel
+rotate index n matcher incrementer =
+    map (\(x, y, lit) ->
+        if matcher x y index then
+            incrementer (x, y, lit) n
+        else
+            (x, y, lit))
 
 applyInstructions: Instruction -> List Pixel -> List Pixel
 applyInstructions instr grid =
     case instr of
         Rect x y ->
-            rectangle grid x y
+            rectangle x y grid
         Rotate dim ->
             case dim of
                 Row y n ->
-                    rotate grid y n (\x y i -> y == i) incrementX
+                    rotate y n (\x y i -> y == i) incrementX grid
                 Col x n ->
-                    rotate grid x n (\x y i -> x == i) incrementY
+                    rotate x n (\x y i -> x == i) incrementY grid
         _ -> grid
 
 instructions: List Instruction
