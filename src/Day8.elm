@@ -1,12 +1,21 @@
 module Day8 exposing (..)
 
-import List exposing (range, map, concatMap, filter, foldl, length)
+import List exposing (head, range, map, concatMap, filter, foldl, length)
 import String exposing (left, right, toInt, words)
 
+getPixel: (Int, Int) -> List Pixel -> Maybe Pixel
+getPixel (x, y) grid =
+    grid
+        |> filter (\(x1, y1, _) -> x1 == x && y1 == y)
+        |> head
+
+initialGrid: List Pixel
 initialGrid =
     range 0 49
         |> concatMap (\x ->
             range 0 5 |> map (\y -> (x, y, False)))
+
+type alias Pixel = (Int, Int, Bool)
 
 type Dimension =
     Row Int Int
@@ -17,32 +26,97 @@ type Instruction =
     | Rotate Dimension
     | Unknown
 
+safeToInt: String -> Int
 safeToInt =
     toInt >> (Result.withDefault 0)
 
+parseRotation: (Int -> Int -> Dimension) -> String -> String -> Dimension
+parseRotation fn a b =
+    case String.split "=" a of
+        _ :: amount :: [] ->
+            fn (amount |> safeToInt) (safeToInt b)
+        _ -> Row 0 0
+
+parseInstruction: String -> Instruction
 parseInstruction inst =
     let
-        w = String.words inst
-        parseRotation  = (\fn a b -> fn (right 1 a |> safeToInt) (safeToInt b))
+        w = words inst
     in
         case w of
             first :: second :: [] ->
-                Rect (left 1 second |> safeToInt) (right 1 second |> safeToInt)
-            first :: second :: third :: fourth :: fifth :: [] ->
-                case second of
+                case String.split "x" second of
+                    x :: y :: [] ->
+                        Rect (x |> safeToInt) (y |> safeToInt)
+                    _ -> Unknown
+            _ :: dim :: axis :: _ :: amount :: [] ->
+                case dim of
                     "row" ->
-                        Rotate (parseRotation Row third fifth)
+                        Rotate (parseRotation Row axis amount)
                     "column" ->
-                        Rotate (parseRotation Col third fifth)
+                        Rotate (parseRotation Col axis amount)
                     _ -> Unknown
             _ -> Unknown
 
+lit: Pixel -> Bool
 lit (_, _, l) =
     l
 
-applyInstructions instr grid =
+rectangle: List Pixel -> Int -> Int -> List Pixel
+rectangle grid x y =
     grid
+        |> map (\(x1, y1, l) ->
+            if x1 < x && y1 < y then
+                (x1, y1, True)
+            else
+                (x1, y1, l))
 
+constrainedInc: Int -> Int -> Int -> Int
+constrainedInc curr inc max =
+    let
+        res = curr + inc
+    in
+        if res > max then
+            res - (max + 1)
+        else
+            res
+
+incrementX: Pixel -> Int -> Pixel
+incrementX (x, y, lit) n =
+    (constrainedInc x n 49, y, lit)
+
+incrementY: Pixel -> Int -> Pixel
+incrementY (x, y, lit) n =
+    (x, constrainedInc y n 5, lit)
+
+
+rotate: List Pixel -> Int -> Int -> (Int -> Int -> Int -> Bool) -> (Pixel -> Int -> Pixel) -> List Pixel
+rotate grid index n matcher incrementer =
+    grid
+        |> map (\(x, y, lit) ->
+            if matcher x y index then
+                incrementer (x, y, lit) n
+            else
+                (x, y, lit))
+
+applyInstructions: Instruction -> List Pixel -> List Pixel
+applyInstructions instr grid =
+    case instr of
+        Rect x y ->
+            rectangle grid x y
+        Rotate dim ->
+            case dim of
+                Row y n ->
+                    rotate grid y n (\x y i -> y == i) incrementX
+                Col x n ->
+                    rotate grid x n (\x y i -> x == i) incrementY
+        _ -> grid
+
+instructions: List Instruction
+instructions =
+    input
+        |> map parseInstruction
+
+solution: Int
 solution =
     input
         |> map parseInstruction
@@ -50,6 +124,7 @@ solution =
         |> filter lit
         |> length
 
+input : List String
 input =
     [ "rect 1x1"
     , "rotate row y=0 by 5"
