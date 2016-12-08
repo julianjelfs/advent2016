@@ -1,15 +1,16 @@
 module Day7 exposing (..)
 
 import Regex exposing (..)
+import Set
 
-containsABBA abba chars =
-    case List.take 4 chars of
-        one :: two :: three :: four :: [] ->
-            containsABBA
-                (one == four && two == three && one /= two)
-                (List.drop 4 chars)
-        _ -> abba
-
+collect hits chars =
+    case List.take 3 chars of
+        one :: two :: three :: [] ->
+            if one == three && one /= two then
+                collect (Set.insert (one, two, three) hits) (List.drop 1 chars)
+            else
+                collect hits (List.drop 1 chars)
+        _ -> hits
 
 re = regex "(\\[[a-z]*\\])"
 
@@ -19,15 +20,17 @@ processAddress address =
             split All re address
                 |> List.partition (\s -> String.left 1 s == "[")
 
-        incFn = String.toList >> (containsABBA False)
-        exFn = String.toList >> (containsABBA False) >> not
+        collectAll = List.foldl (\s hits -> collect hits (String.toList s)) Set.empty
     in
-        case List.any incFn incls
-            && List.all exFn excls of
+        case (collectAll incls
+            |> Set.map (\(a, b, c) -> (b, a, b))
+            |> Set.intersect (collectAll excls)
+            |> Set.isEmpty
+            |> not) of
             True -> Just address
             False -> Nothing
 
-solution =
+solution () =
     raw
         |> List.filterMap processAddress
         |> List.length
