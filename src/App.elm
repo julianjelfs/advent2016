@@ -3,15 +3,15 @@ module App exposing (..)
 import Html exposing (Html, text, div)
 import Day1 exposing (input)
 
+type alias Pixel = (Int, Int, Bool)
 
 type alias Model =
-    { message : String
+    { grid = List Pixel
     }
-
 
 init : ( Model, Cmd Msg )
 init =
-    ( { message = "Your Elm App is working!" }, Cmd.none )
+    ( { grid = [] }, Cmd.none )
 
 
 type Msg
@@ -25,7 +25,9 @@ update msg model =
 
 view : Model -> Html Msg
 view model =
-    div [] [ input |> toString |> text ]
+    div
+        []
+        []
 
 
 subscriptions : Model -> Sub Msg
