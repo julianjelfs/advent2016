@@ -1,13 +1,35 @@
 module Day9 exposing (..)
 
-import List exposing (tail, head, range, map, concatMap, filter, foldl)
+import Regex exposing (..)
+import List exposing (tail, head, range, map, concatMap, filter, foldl, filterMap)
 import String exposing (left, right, toInt, words, toList, append, fromChar, length)
 import Debug exposing (log)
+
+re = regex "^\\(([0-9]{1,})x([0-9]{1,})\\)"
+
+safeToInt =
+    Maybe.map (toInt >> (Result.withDefault 0))
+
+getMarker inp =
+    case find (AtMost 1) re inp |> head of
+        Just m ->
+            m.submatches
+                |> filterMap safeToInt
+                |> Just
+        Nothing -> Nothing
+
 
 decompress result inp =
     case inp of
         hd :: tl ->
-            decompress (result ++ (fromChar hd)) tl
+            case getMarker inp of
+                Just marker ->
+                    case marker of
+                        num :: reps :: [] ->
+                            --process the marker
+                            decompress (result ++ (fromChar hd)) tl
+                        _ -> decompress (result ++ (fromChar hd)) tl
+                Nothing -> decompress (result ++ (fromChar hd)) tl
         [] -> result
 
 solution =
