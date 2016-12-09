@@ -2,7 +2,7 @@ module Day9 exposing (..)
 
 import Regex exposing (..)
 import List exposing (tail, head, range, map, concatMap, filter, foldl, filterMap)
-import String exposing (left, right, toInt, words, toList, append, fromChar, length)
+import String exposing (append, fromChar, fromList, join, left, length, right, slice, toInt, toList, uncons, words)
 import Debug exposing (log)
 
 re = regex "^\\(([0-9]{1,})x([0-9]{1,})\\)"
@@ -15,26 +15,37 @@ getMarker inp =
         Just m ->
             m.submatches
                 |> filterMap safeToInt
+                |> ((::) (length m.match))
                 |> Just
         Nothing -> Nothing
 
-
 decompress result inp =
-    case inp of
-        hd :: tl ->
+    case uncons inp of
+        Just (hd, tl) ->
             case getMarker inp of
-                Just marker ->
-                    case marker of
-                        num :: reps :: [] ->
-                            --process the marker
-                            decompress (result ++ (fromChar hd)) tl
-                        _ -> decompress (result ++ (fromChar hd)) tl
-                Nothing -> decompress (result ++ (fromChar hd)) tl
-        [] -> result
+                Just (len :: num :: reps :: []) ->
+                    let
+                        toRepeat =
+                            slice len (len + num) inp
+
+                        repeated =
+                            range 1 reps
+                                |> map (\_ -> toRepeat)
+                                |> (join "")
+                                --|> decompress ""
+
+                        rest =
+                            slice (len + num) (length inp) inp
+                    in
+                        decompress (result ++ repeated) rest
+                _ -> decompress (result ++ (fromChar hd)) tl
+        Nothing -> result
 
 solution =
     input
         |> toList
+        |> filter (\c -> c /= ' ')
+        |> fromList
         |> decompress ""
         |> length
 
