@@ -3,10 +3,7 @@ module Day10 exposing (..)
 import List exposing (filterMap, foldl, partition)
 import String exposing (startsWith, toInt, words)
 import Dict exposing (Dict)
-
-type alias BotState =
-    { id: Int
-    , chips: List Int }
+import Debug exposing (log)
 
 type Instruction =
     Value Int Int
@@ -53,57 +50,78 @@ applyValue instr bots =
         Bot _ _ _ -> bots
         Value v id ->
             if Dict.member id bots then
-                safeUpdate id (\b -> {b| chips = v::b.chips}) bots
+                safeUpdate id (\b -> v::b) bots
             else
-                Dict.insert id (BotState id [v]) bots
+                Dict.insert id [v] bots
 
 checkBots bots =
-    Dict.filter (\id v -> List.member 61 v.chips && List.member 17 v.chips) bots
+    Dict.filter (\id v -> List.member 61 v && List.member 17 v) bots
         |> Dict.keys
         |> List.head
 
 -- add a chip to a target
-transfer target amount bots =
+transfer target amount outputs bots =
     let
-        addChip = (\id b -> safeUpdate id (\b -> {b|chips = amount::b.chips}) bots)
+        addChip = (\id b -> safeUpdate id (\b -> amount::b) bots)
     in
         case target of
-            Output _ -> bots --don't seem like we need to care about this for the moment
+            Output id ->
+                (bots,
+                    (case Dict.get id outputs of
+                        Nothing ->
+                            Dict.insert id [amount] outputs
+                        Just _ ->
+                            safeUpdate id (\xs -> amount::xs) outputs))
+
             OtherBot id ->
-                case Dict.get id bots of
-                    Nothing -> bots
+                ((case Dict.get id bots of
+                    --if this bot doesn't exist yet, insert a record for it
+                    Nothing ->
+                        Dict.insert id [amount] bots
+
                     Just b ->
-                        case b.chips of
+                        case b of
                             [x,y] -> bots   -- we already have 2 chips
-                            _ -> addChip id b
+                            _ -> addChip id b), outputs)
 
 safeUpdate id fn dict =
     Dict.update id (\m -> Maybe.map fn m) dict
 
---change this to make it recursive
-applyBotInstructions (all, current) bots =
+getFirstChip index outputs =
+    Dict.get index outputs
+        |> Maybe.withDefault []
+        |> List.head
+        |> Maybe.withDefault 0
+
+multiplyOutputs outputs =
+    (getFirstChip 0 outputs) * (getFirstChip 1 outputs) * (getFirstChip 2 outputs)
+
+applyBotInstructions (all, current) (bots, outputs) =
     case current of
         x::xs ->
             let
-                updated =
+                (updatedBots, updatedOutputs) =
                     case x of
-                        Value _ _ -> bots
+                        Value _ _ -> (bots, outputs)
                         Bot id low high ->
                             case Dict.get id bots of
-                                Nothing -> bots
+                                Nothing -> (bots, outputs)
                                 Just b ->
-                                    case List.sort b.chips of
+                                    case List.sort b of
                                         [l,h] ->
-                                            bots
-                                                |> transfer low l
-                                                |> transfer high h
-                                                |> safeUpdate id (\b -> {b|chips = []})
-                                        _ -> bots
+                                            let
+                                                (b, o) =
+                                                    bots
+                                                        |> safeUpdate id (\b -> [])
+                                                        |> transfer low l outputs
+                                            in
+                                                transfer high h o b
+                                        _ -> (bots, outputs)
             in
-                case checkBots updated of
-                    Nothing -> applyBotInstructions (all, xs) updated
-                    Just id -> id
-        _ -> applyBotInstructions (all, all) bots
+                case checkBots updatedBots of
+                    Nothing -> applyBotInstructions (all, xs) (updatedBots, updatedOutputs)
+                    Just id -> (id, multiplyOutputs (log "outputs" updatedOutputs))
+        _ -> applyBotInstructions (all, all) (bots, outputs)
 
 solve _ =
     let
@@ -117,10 +135,18 @@ solve _ =
         --now we just have to process the instructions until we end up with a bot that is
         --holding 61 and 17?
         case checkBots initialState of
-            Just id -> id
+            Just id -> (id, 0)
             Nothing ->
-                applyBotInstructions (bots, bots) initialState
+                applyBotInstructions (bots, bots) ((log "init" initialState), Dict.empty)
 
+{--
+    need to refactor to:
+    1) apply all value instuctions
+    2) find first bot with two chips
+    3) execute its rule
+    4) check bots
+    5) goto 2)
+--}
 
 
 input =
