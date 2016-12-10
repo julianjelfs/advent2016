@@ -96,32 +96,56 @@ getFirstChip index outputs =
 multiplyOutputs outputs =
     (getFirstChip 0 outputs) * (getFirstChip 1 outputs) * (getFirstChip 2 outputs)
 
-applyBotInstructions (all, current) (bots, outputs) =
-    case current of
-        x::xs ->
+performTransfer id low high bots outputs =
+    case Dict.get id bots of
+        Nothing -> (bots, outputs)
+        Just b ->
+            case List.sort b of
+                [l,h] ->
+                    let
+                        (b, o) =
+                            bots
+                                |> safeUpdate id (\b -> [])
+                                |> transfer low l outputs
+                    in
+                        transfer high h o b
+                _ -> (bots, outputs)
+
+removeInstruction all toRemove =
+    List.filter (\i ->
+        case i of
+            Value _ _ -> False
+            Bot id _ _ -> id /= toRemove) all
+
+applyInstruction2 all bots outputs =
+    case all of
+        [] -> multiplyOutputs outputs
+        _ ->
             let
-                (updatedBots, updatedOutputs) =
-                    case x of
-                        Value _ _ -> (bots, outputs)
-                        Bot id low high ->
-                            case Dict.get id bots of
-                                Nothing -> (bots, outputs)
-                                Just b ->
-                                    case List.sort b of
-                                        [l,h] ->
-                                            let
-                                                (b, o) =
-                                                    bots
-                                                        |> safeUpdate id (\b -> [])
-                                                        |> transfer low l outputs
-                                            in
-                                                transfer high h o b
-                                        _ -> (bots, outputs)
+                first =
+                    all
+                        |> List.filter
+                            (\i ->
+                                case i of
+                                    Value _ _ -> False
+                                    Bot id low high ->
+                                        case Dict.get id bots of
+                                            Nothing -> False
+                                            Just b ->
+                                                case b of
+                                                    [l,h] -> True
+                                                    _ -> False)
+                        |> List.head
+                        |> (log "instruction")
             in
-                case checkBots updatedBots of
-                    Nothing -> applyBotInstructions (all, xs) (updatedBots, updatedOutputs)
-                    Just id -> (id, multiplyOutputs (log "outputs" updatedOutputs))
-        _ -> applyBotInstructions (all, all) (bots, outputs)
+                case first of
+                    Just (Bot id low high) ->
+                        let
+                            (updatedBots, updatedOutputs) =
+                                performTransfer id low high bots outputs
+                        in
+                            applyInstruction2 (removeInstruction all id) updatedBots updatedOutputs
+                    _ -> multiplyOutputs outputs
 
 solve _ =
     let
@@ -132,22 +156,10 @@ solve _ =
             values
                 |> foldl applyValue Dict.empty
     in
+
         --now we just have to process the instructions until we end up with a bot that is
         --holding 61 and 17?
-        case checkBots initialState of
-            Just id -> (id, 0)
-            Nothing ->
-                applyBotInstructions (bots, bots) ((log "init" initialState), Dict.empty)
-
-{--
-    need to refactor to:
-    1) apply all value instuctions
-    2) find first bot with two chips
-    3) execute its rule
-    4) check bots
-    5) goto 2)
---}
-
+        applyInstruction2 bots initialState Dict.empty
 
 input =
     [ "bot 152 gives low to bot 155 and high to bot 70"
