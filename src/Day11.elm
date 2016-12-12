@@ -1,89 +1,160 @@
 module Day11 exposing (..)
 
-type alias State =
-    { position: Position
-    , visited: List Position
-    }
+import Array exposing (Array)
+import Set exposing (Set)
+import List.Extra exposing (subsequences)
 
 type alias Position =
-    { floors: List Floor
+    { floors: Array Floor
+    , elevatorIndex: Int
     }
 
 type alias Floor =
-    { elevator: Bool
-    , things: List Thing
+    { things: Set Thing
     }
 
-type Element =
-    Thulium
-    | Plutonium
-    | Strontium
-    | Promethium
-    | Ruthenium
+type alias Thing = (String, String)
 
-type Thing =
-    Chip Element
-    | Generator Element
+initialPosition =
+    Position
+        (Array.fromList
+            [ Floor
+                (Set.fromList [ ("G", "T")
+                , ("C", "T")
+                , ("G", "PL")
+                , ("G", "S")
+                ])
+            , Floor
+                (Set.fromList [ ("C", "PL")
+                , ("C", "S")
+                ])
+            , Floor
+                (Set.fromList [ ("G", "PR")
+                , ("C", "PR")
+                , ("G", "R")
+                , ("C", "R")
+                ])
+            , Floor
+                Set.empty
+            ])
+        0
 
-initialState =
-    { position =
-        Position
-            [ Floor True
-                [ (Generator Thulium)
-                , (Chip Thulium)
-                , (Generator Plutonium)
-                , (Generator Strontium)
-                ]
-            , Floor False
-                [ (Chip Plutonium)
-                , (Chip Strontium)
-                ]
-            , Floor False
-                [ (Generator Promethium)
-                , (Chip Promethium)
-                , (Generator Ruthenium)
-                , (Chip Ruthenium)
-                ]
-            , Floor False
-                [ ]
-            ]
-    , visited = []
-    }
+matchingGenerators: Set Thing -> Thing -> Set Thing
+matchingGenerators generators (_, ce) =
+    Set.filter
+        (\(_, ge) -> ge == ce) generators
 
-thingsOfType things t =
-    List.filter
-        (\t -> case t of
-            _ t -> True
-            _ -> False) things
-
+floorValid: Floor -> Bool
 floorValid floor =
     let
         (chips, generators) =
-            List.partition
-                (\t -> case t of
-                    Chip _ -> True
+            Set.partition
+                (\(t, e) -> case t of
+                    "C" -> True
                     _ -> False ) floor.things
     in
         --floor is valid if we have both unaccompanied chips && some generators
-        (not (List.empty generators))
+        (not (Set.isEmpty generators))
             &&
-                List.filter
+                (Set.filter
                     (\c ->
-                        thingsOfType generators c
-                            |> List.isEmpty) chips
-                |> List.isEmpty
+                        matchingGenerators generators c
+                            |> Set.isEmpty) chips
+                    |> Set.isEmpty)
 
-positionValid pos =
-    List.all floorValid pos.floors
+positionNotVisited: List Position -> Position -> Bool
+positionNotVisited visited position =
+    List.member position visited |> not
 
-getNextPossiblePositions state =
-    --given the current position, get all possible next states
-    --and then filter them for validity
-    --and then filter them for states we've been in before
-    []
+positionValid: List Position -> Position -> Bool
+positionValid visited position =
+    positionNotVisited visited position
+        && (position.floors |> Array.toList |> List.all floorValid)
+
+floorIsEmpty: Position -> Int -> Bool
+floorIsEmpty position index =
+    case Array.get index position.floors of
+        Just f -> Set.isEmpty f.things
+        Nothing -> False
+
+--returns true if we have got all the things to the fourth floor
+complete: Position -> Bool
+complete position =
+    floorIsEmpty position 0
+        && floorIsEmpty position 1
+        && floorIsEmpty position 2
+
+modifyThingsInFloor: Int -> Set Thing -> (Set Thing -> Set Thing -> Set Thing) -> Position -> Position
+modifyThingsInFloor index things setFn position =
+    let
+        mf = Array.get index position.floors
+    in
+        case mf of
+            Just floor ->
+                { position | floors =
+                    Array.set
+                        index
+                        { floor | things = setFn floor.things things }
+                        position.floors
+                }
+            Nothing -> position
 
 
+applyMove: Position -> (Int, Int) -> Set Thing -> Position
+applyMove from (f, to) things =
+    let
+        updated =
+            modifyThingsInFloor f things Set.diff from
+                |> modifyThingsInFloor to things Set.union
+    in
+        { updated | elevatorIndex = to }
+
+--returns all valid positions that we can get into from the passed in position
+getPossiblePositions: List Position -> Position -> List Position
+getPossiblePositions visited position =
+    let
+        things =
+            Array.get position.elevatorIndex position.floors
+                |> Maybe.map .things
+                |> Maybe.withDefault Set.empty
+                |> Set.toList
+
+        paths =
+            case position.elevatorIndex of
+                0 -> [(0,1)]
+                1 -> [(1,0), (1,2)]
+                2 -> [(2,1), (2,3)]
+                3 -> [(3,2)]
+                _ -> []
+    in
+        List.concatMap (\p ->
+            things
+                |> subsequences
+                |> List.filter
+                    (\s ->
+                        case s of
+                            [x] -> True
+                            [x,y] -> True
+                            _ -> False )
+                |> List.map
+                    (\s -> applyMove position p (Set.fromList s))
+                |> List.filter
+                    (\p -> positionValid visited p)
+        ) paths
+
+evaluatePosition: Int -> List Position -> Position -> Maybe Int
+evaluatePosition moveCount visited position  =
+    case complete position of
+        True -> Just moveCount
+        False ->
+            let
+                v = position :: visited
+            in
+                getPossiblePositions v position
+                    |> List.filterMap (evaluatePosition (moveCount + 1) v)
+                    |> List.minimum
+
+solution: () -> Int
 solution () =
-    getNextPossiblePositions initialState
-        |> .visited
-        |> length
+    evaluatePosition 0 [] initialPosition
+        |> Maybe.withDefault 0
