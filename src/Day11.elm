@@ -20,6 +20,24 @@ initialPosition =
     Position
         (Array.fromList
             [ Floor
+                (Set.fromList [ ("C", "H")
+                , ("C", "L")
+                ])
+            , Floor
+                (Set.fromList [ ("G", "H")
+                ])
+            , Floor
+                (Set.fromList [ ("G", "L")
+                ])
+            , Floor
+                Set.empty
+            ])
+        0
+
+{-initialPosition =
+    Position
+        (Array.fromList
+            [ Floor
                 (Set.fromList [ ("G", "T")
                 , ("C", "T")
                 , ("G", "PL")
@@ -38,7 +56,7 @@ initialPosition =
             , Floor
                 Set.empty
             ])
-        0
+        0-}
 
 matchingGenerators: Set Thing -> Thing -> Set Thing
 matchingGenerators generators (_, ce) =
@@ -47,21 +65,25 @@ matchingGenerators generators (_, ce) =
 
 floorValid: Floor -> Bool
 floorValid floor =
-    let
-        (chips, generators) =
-            Set.partition
-                (\(t, e) -> case t of
-                    "C" -> True
-                    _ -> False ) floor.things
-    in
-        --floor is valid if we have both unaccompanied chips && some generators
-        (not (Set.isEmpty generators))
-            &&
-                (Set.filter
-                    (\c ->
-                        matchingGenerators generators c
-                            |> Set.isEmpty) chips
-                    |> Set.isEmpty)
+    case Set.size floor.things of
+        0 -> True
+        1 -> True
+        _ ->
+            let
+                (chips, generators) =
+                    Set.partition
+                        (\(t, e) -> case t of
+                            "C" -> True
+                            _ -> False ) floor.things
+            in
+                --floor is valid if we have both unaccompanied chips && some generators
+                (not (Set.isEmpty generators))
+                    &&
+                        (Set.filter
+                            (\c ->
+                                matchingGenerators generators c
+                                    |> Set.isEmpty) chips
+                            |> Set.isEmpty)
 
 positionNotVisited: List Position -> Position -> Bool
 positionNotVisited visited position =
@@ -142,8 +164,10 @@ getPossiblePositions visited position =
                             [x] -> True
                             [x,y] -> True
                             _ -> False )
+                |> (log "subs")
                 |> List.map
                     (\s -> applyMove position p (Set.fromList s))
+                |> (log "moved")
                 |> List.filter
                     (\p -> positionValid visited p)
         ) paths
