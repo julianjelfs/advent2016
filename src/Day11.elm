@@ -3,6 +3,7 @@ module Day11 exposing (..)
 import Array exposing (Array)
 import Set exposing (Set)
 import List.Extra exposing (subsequences)
+import Debug exposing (log)
 
 type alias Position =
     { floors: Array Floor
@@ -68,8 +69,13 @@ positionNotVisited visited position =
 
 positionValid: List Position -> Position -> Bool
 positionValid visited position =
-    positionNotVisited visited position
-        && (position.floors |> Array.toList |> List.all floorValid)
+    (log "not visited" (positionNotVisited visited position))
+        && (position.floors
+            |> Array.toList
+            |> List.filter floorValid
+            |> List.length
+            |> (log "valid floors")
+            |> ((==) 4))
 
 floorIsEmpty: Position -> Int -> Bool
 floorIsEmpty position index =
@@ -151,6 +157,7 @@ evaluatePosition moveCount visited position  =
                 v = position :: visited
             in
                 getPossiblePositions v position
+                    |> (log "possible")
                     |> List.filterMap (evaluatePosition (moveCount + 1) v)
                     |> List.minimum
 
