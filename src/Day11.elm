@@ -16,12 +16,13 @@ type alias Floor =
 
 type alias Thing = (String, String)
 
+{--
 initialPosition =
     Position
         (Array.fromList
             [ Floor
-                (Set.fromList [ ("C", "H")
-                , ("C", "L")
+                (Set.fromList [ ("M", "H")
+                , ("M", "L")
                 ])
             , Floor
                 (Set.fromList [ ("G", "H")
@@ -33,30 +34,31 @@ initialPosition =
                 Set.empty
             ])
         0
+--}
 
-{-initialPosition =
+initialPosition =
     Position
         (Array.fromList
             [ Floor
                 (Set.fromList [ ("G", "T")
-                , ("C", "T")
+                , ("M", "T")
                 , ("G", "PL")
                 , ("G", "S")
                 ])
             , Floor
-                (Set.fromList [ ("C", "PL")
-                , ("C", "S")
+                (Set.fromList [ ("M", "PL")
+                , ("M", "S")
                 ])
             , Floor
                 (Set.fromList [ ("G", "PR")
-                , ("C", "PR")
+                , ("M", "PR")
                 , ("G", "R")
-                , ("C", "R")
+                , ("M", "R")
                 ])
             , Floor
                 Set.empty
             ])
-        0-}
+        0
 
 matchingGenerators: Set Thing -> Thing -> Set Thing
 matchingGenerators generators (_, ce) =
@@ -73,7 +75,7 @@ floorValid floor =
                 (chips, generators) =
                     Set.partition
                         (\(t, e) -> case t of
-                            "C" -> True
+                            "M" -> True
                             _ -> False ) floor.things
             in
                 --floor is valid if we have both unaccompanied chips && some generators
@@ -85,25 +87,32 @@ floorValid floor =
                                     |> Set.isEmpty) chips
                             |> Set.isEmpty)
 
+positionsEqual p1 p2 =
+    p1.elevatorIndex == p2.elevatorIndex
+        && (List.map2 (\f1 f2 -> f1.things == f2.things) (Array.toList p1.floors) (Array.toList p2.floors)
+            |> List.all identity)
+
+
 positionNotVisited: List Position -> Position -> Bool
 positionNotVisited visited position =
-    List.member position visited |> not
+    visited
+        |> List.filter (positionsEqual position)
+        |> List.isEmpty
 
 positionValid: List Position -> Position -> Bool
 positionValid visited position =
-    (log "not visited" (positionNotVisited visited position))
+    (positionNotVisited visited position)
         && (position.floors
             |> Array.toList
             |> List.filter floorValid
             |> List.length
-            |> (log "valid floors")
             |> ((==) 4))
 
 floorIsEmpty: Position -> Int -> Bool
 floorIsEmpty position index =
     case Array.get index position.floors of
         Just f -> Set.isEmpty f.things
-        Nothing -> False
+        Nothing -> True
 
 --returns true if we have got all the things to the fourth floor
 complete: Position -> Bool
@@ -164,28 +173,36 @@ getPossiblePositions visited position =
                             [x] -> True
                             [x,y] -> True
                             _ -> False )
-                |> (log "subs")
                 |> List.map
                     (\s -> applyMove position p (Set.fromList s))
-                |> (log "moved")
                 |> List.filter
-                    (\p -> positionValid visited p)
+                    (\candidate -> positionValid visited candidate)
         ) paths
 
-evaluatePosition: Int -> List Position -> Position -> Maybe Int
-evaluatePosition moveCount visited position  =
-    case complete position of
-        True -> Just moveCount
-        False ->
-            let
-                v = position :: visited
-            in
-                getPossiblePositions v position
-                    |> (log "possible")
-                    |> List.filterMap (evaluatePosition (moveCount + 1) v)
-                    |> List.minimum
+evaluatePosition: Int -> Int -> List Position -> Position -> Maybe Int
+evaluatePosition shortest moveCount visited position  =
+    if moveCount >= shortest then
+        Nothing -- we already have a better solution
+    else
+        case complete position of
+            True -> Just (log "completed" moveCount)
+            False ->
+                let
+                    v = position :: visited
+                    possible = getPossiblePositions v position
+
+                in
+                    Just (List.foldl (\poss shortest ->
+                        case evaluatePosition shortest (moveCount + 1) v poss of
+                            Nothing -> shortest
+                            Just n ->
+                                if n < shortest then
+                                    n
+                                else
+                                    shortest
+                    ) shortest possible)
 
 solution: () -> Int
 solution () =
-    evaluatePosition 0 [] initialPosition
+    evaluatePosition 10000 0 [] initialPosition
         |> Maybe.withDefault 0
