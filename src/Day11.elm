@@ -16,8 +16,7 @@ type alias Floor =
 
 type alias Thing = (String, String)
 
-{--
-initialPosition =
+{-initialPosition =
     Position
         (Array.fromList
             [ Floor
@@ -33,8 +32,17 @@ initialPosition =
             , Floor
                 Set.empty
             ])
-        0
---}
+        0-}
+
+serialisePos p =
+    p.floors
+        |> Array.foldl (\f str ->
+                str ++ (f.things |> Set.toList |> toString)
+            ) ((toString p.elevatorIndex ++ "_"))
+
+elements =
+    ["T","PL","S","PR","R"]
+    --["H","L"]
 
 initialPosition =
     Position
@@ -60,12 +68,27 @@ initialPosition =
             ])
         0
 
-matchingGenerators: Set Thing -> Thing -> Set Thing
+pairs pos =
+    elements
+        |> List.concatMap (\e ->
+            let
+                floors t =
+                    Array.indexedMap (\i f -> if Set.member (t, e) f.things then i else -1) pos.floors
+                        |> Array.filter (\i -> i >= 0)
+                        |> Array.toList
+
+                chipsFloors =
+                    floors "M"
+
+                genFloors =
+                    floors "G"
+            in
+                List.map2 (\c g -> (c,g)) chipsFloors genFloors )
+
 matchingGenerators generators (_, ce) =
     Set.filter
         (\(_, ge) -> ge == ce) generators
 
-floorValid: Floor -> Bool
 floorValid floor =
     case Set.size floor.things of
         0 -> True
@@ -88,18 +111,14 @@ floorValid floor =
                             |> Set.isEmpty)
 
 positionsEqual p1 p2 =
-    p1.elevatorIndex == p2.elevatorIndex
-        && (List.map2 (\f1 f2 -> f1.things == f2.things) (Array.toList p1.floors) (Array.toList p2.floors)
-            |> List.all identity)
+    p1 == p2
 
-
-positionNotVisited: List Position -> Position -> Bool
 positionNotVisited visited position =
-    visited
-        |> List.filter (positionsEqual position)
-        |> List.isEmpty
+{-    visited
+        |> List.filter (positionsEqual (position.elevatorIndex, pairs position))
+        |> List.isEmpty-}
+    Set.member (position.elevatorIndex, pairs position) visited |> not
 
-positionValid: List Position -> Position -> Bool
 positionValid visited position =
     (positionNotVisited visited position)
         && (position.floors
@@ -108,20 +127,17 @@ positionValid visited position =
             |> List.length
             |> ((==) 4))
 
-floorIsEmpty: Position -> Int -> Bool
 floorIsEmpty position index =
     case Array.get index position.floors of
         Just f -> Set.isEmpty f.things
         Nothing -> True
 
 --returns true if we have got all the things to the fourth floor
-complete: Position -> Bool
 complete position =
     floorIsEmpty position 0
         && floorIsEmpty position 1
         && floorIsEmpty position 2
 
-modifyThingsInFloor: Int -> Set Thing -> (Set Thing -> Set Thing -> Set Thing) -> Position -> Position
 modifyThingsInFloor index things setFn position =
     let
         mf = Array.get index position.floors
@@ -137,7 +153,6 @@ modifyThingsInFloor index things setFn position =
             Nothing -> position
 
 
-applyMove: Position -> (Int, Int) -> Set Thing -> Position
 applyMove from (f, to) things =
     let
         updated =
@@ -147,7 +162,6 @@ applyMove from (f, to) things =
         { updated | elevatorIndex = to }
 
 --returns all valid positions that we can get into from the passed in position
-getPossiblePositions: List Position -> Position -> List Position
 getPossiblePositions visited position =
     let
         things =
@@ -179,30 +193,30 @@ getPossiblePositions visited position =
                     (\candidate -> positionValid visited candidate)
         ) paths
 
-evaluatePosition: Int -> Int -> List Position -> Position -> Maybe Int
-evaluatePosition shortest moveCount visited position  =
-    if moveCount >= shortest then
-        Nothing -- we already have a better solution
-    else
-        case complete position of
-            True -> Just (log "completed" moveCount)
+evaluationPositions depth positions visited =
+    let
+        (f, v, n) =
+            List.foldl (\p (foundSolution, visited, nextLevel) ->
+                --if completed on a previous iteration
+                if foundSolution then
+                    (foundSolution, visited, nextLevel)
+                else
+                    case complete p of
+                        True -> (True, visited, nextLevel)
+                        False ->
+                            let
+                                v = Set.insert (p.elevatorIndex, (pairs p)) visited
+                            in
+                                (foundSolution, v, List.append nextLevel (getPossiblePositions v p))
+            ) (False, visited, []) positions
+    in
+        case f of
+            True ->
+                depth
             False ->
-                let
-                    v = position :: visited
-                    possible = getPossiblePositions v position
+                evaluationPositions (depth + 1) n v
 
-                in
-                    Just (List.foldl (\poss shortest ->
-                        case evaluatePosition shortest (moveCount + 1) v poss of
-                            Nothing -> shortest
-                            Just n ->
-                                if n < shortest then
-                                    n
-                                else
-                                    shortest
-                    ) shortest possible)
+--one more thing to try which is to store visited pairs in a set
 
-solution: () -> Int
 solution () =
-    evaluatePosition 10000 0 [] initialPosition
-        |> Maybe.withDefault 0
+    evaluationPositions 0 [initialPosition] Set.empty
