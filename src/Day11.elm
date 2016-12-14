@@ -42,7 +42,7 @@ serialisePos p =
 
 elements =
     ["T","PL","S","PR","R"]
-    --["H","L"]
+--    ["H","L"]
 
 initialPosition =
     Position
@@ -84,6 +84,8 @@ pairs pos =
                     floors "G"
             in
                 List.map2 (\c g -> (c,g)) chipsFloors genFloors )
+                    |> List.sort
+                    |> (\s -> (pos.elevatorIndex, s))
 
 matchingGenerators generators (_, ce) =
     Set.filter
@@ -117,7 +119,7 @@ positionNotVisited visited position =
 {-    visited
         |> List.filter (positionsEqual (position.elevatorIndex, pairs position))
         |> List.isEmpty-}
-    Set.member (position.elevatorIndex, pairs position) visited |> not
+    Set.member (pairs position) visited |> not
 
 positionValid visited position =
     (positionNotVisited visited position)
@@ -205,7 +207,7 @@ evaluationPositions depth positions visited =
                         True -> (True, visited, nextLevel)
                         False ->
                             let
-                                v = Set.insert (p.elevatorIndex, (pairs p)) visited
+                                v = Set.insert (pairs p) visited
                             in
                                 (foundSolution, v, List.append nextLevel (getPossiblePositions v p))
             ) (False, visited, []) positions
