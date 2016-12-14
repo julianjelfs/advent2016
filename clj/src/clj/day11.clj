@@ -23,18 +23,21 @@
 (defn matchingGenerators [generators chip]
   (filter (fn [g] (= (:g g) (:m chip))) generators))
 
-(defn floorValid? [f]
-  (let [s (count f)]
-    (cond
-      (= 0 s) true
-      (= 1 s) true
-      :else 
-      (let [[chips generators] (split-with :m f)
-            chipsWithoutGen (filter (fn [c]
-                                      (empty? (matchingGenerators generators c))) chips)]
-        (if (empty? chipsWithoutGen)
-          true
-          (empty? generators))))))
+(def floorValid? 
+  (memoize 
+    (fn [f]
+      (let [s (count f)]
+        (cond
+          (= 0 s) true
+          (= 1 s) true
+          :else 
+          (let [[chips generators] (split-with :m f)
+                chipsWithoutGen (filter (fn [c]
+                                          (empty? (matchingGenerators generators c))) chips)]
+            (if (empty? chipsWithoutGen)
+              true
+              (empty? generators))))))))
+
 
 (defn positive? [n]
   (>= n 0))
@@ -48,22 +51,30 @@
           -1)) (:floors pos))
     (filter positive?)))
 
-(defn pairs [pos]
-  [(:e pos)
-   (->> elements
-        (mapcat (fn [e]
-                  (let [chipFloors (floors pos e :m)
-                        genFloors (floors pos e :g)
-                        merged (map (fn [c g] [c g] ) chipFloors genFloors)]
-                    (sort merged)))))])
+(def pairs 
+  (memoize 
+    (fn [pos]
+      [(:e pos)
+       (->> elements
+            (mapcat (fn [e]
+                      (let [chipFloors (floors pos e :m)
+                            genFloors (floors pos e :g)
+                            merged (map (fn [c g] [c g] ) chipFloors genFloors)]
+                        (sort merged)))))])))
 
-(defn positionNotVisited [visited pos]
-  (not (contains? visited (pairs pos))))
 
-(defn positionValid [visited pos]
-  (and
-    (positionNotVisited visited pos)
-    (every? floorValid? (:floors pos))))
+(def positionNotVisited 
+  (memoize 
+    (fn [visited pos]
+      (not (contains? visited (pairs pos))))))
+
+(def positionValid
+  (memoize 
+    (fn [visited pos]
+      (and
+        (positionNotVisited visited pos)
+        (every? floorValid? (:floors pos))))))
+
 
 (defn applyMove [from [f to] things]
   (let [newPos (assoc from :e to)
@@ -77,6 +88,15 @@
                (assoc-in ,,, [f] fromFloor)
                (assoc-in ,,, [to] toFloor)))))
 
+(def subset
+  (memoize 
+    (fn [things]
+      (->> (combo/subsets (seq things))
+           (filter (fn [s] 
+                     (and 
+                       (< (count s) 3) 
+                       (> (count s) 0))))))))
+
 (defn possiblePositions [visited pos]
   (let [e (:e pos)
         things (nth (:floors pos) e)
@@ -86,23 +106,21 @@
                 (= 2 e) [[2 1] [2 3]]
                 (= 3 e) [[3 2]]
                 :else [])
-        subs (->> (combo/subsets (seq things))
-                  (filter (fn [s] 
-                            (and 
-                              (< (count s) 3) 
-                              (> (count s) 0))))) ]
+        subs (subset things) ]
     (mapcat (fn [p]
               (->> subs
                    (map (fn [s] (applyMove pos p (set s))))
                    (filter (fn [c] (positionValid visited c)))) 
               ) paths)))
 
-(defn complete? [pos]
-  (let [f (:floors pos)]
-    (and 
-      (empty? (nth f 0))
-      (empty? (nth f 1))
-      (empty? (nth f 2)))))
+(def complete? 
+  (memoize
+    (fn [pos]
+      (let [f (:floors pos)]
+        (and 
+          (empty? (nth f 0))
+          (empty? (nth f 1))
+          (empty? (nth f 2)))))))
 
 (defn evaluatePos [[foundSolution visited nextLevel] pos]
   (if foundSolution
@@ -115,13 +133,16 @@
 
 (defn solution []
   (loop [depth 0
-         positions [initialPosition]
+         positions #{initialPosition} 
          visited #{}]
     (prn depth)
     (prn (count positions))
     (prn (count visited))
-    (let 
+    ;can only really get this far in at the moment
+    (if (> depth 4)
+      depth
+     (let 
       [[f v n] (reduce evaluatePos [false visited []] positions)]
       (if f
         depth
-        (recur (+ 1 depth) n v)))))
+        (recur (+ 1 depth) n v))))))
