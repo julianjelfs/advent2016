@@ -29,12 +29,12 @@
       (= 0 s) true
       (= 1 s) true
       :else 
-        (let [[chips generators] (split-with :m f)
-              chipsWithoutGen (filter (fn [c]
-                        (empty? (matchingGenerators generators c))) chips)]
-          (if (empty? chipsWithoutGen)
-            true
-            (empty? generators))))))
+      (let [[chips generators] (split-with :m f)
+            chipsWithoutGen (filter (fn [c]
+                                      (empty? (matchingGenerators generators c))) chips)]
+        (if (empty? chipsWithoutGen)
+          true
+          (empty? generators))))))
 
 (defn positive? [n]
   (>= n 0))
@@ -92,9 +92,9 @@
                               (< (count s) 3) 
                               (> (count s) 0))))) ]
     (mapcat (fn [p]
-             (->> subs
-                  (map (fn [s] (applyMove pos p (set s))))
-                  (filter (fn [c] (positionValid visited c)))) 
+              (->> subs
+                   (map (fn [s] (applyMove pos p (set s))))
+                   (filter (fn [c] (positionValid visited c)))) 
               ) paths)))
 
 (defn complete? [pos]
@@ -110,15 +110,18 @@
     (if (complete? pos)
       [true visited nextLevel]
       (let [v (conj visited (pairs pos))
-            n (concat nextLevel (possiblePositions v pos))]
+            n (into nextLevel (possiblePositions v pos))]
         [foundSolution v n]))))
 
 (defn solution []
   (loop [depth 0
          positions [initialPosition]
          visited #{}]
+    (prn depth)
+    (prn (count positions))
+    (prn (count visited))
     (let 
-        [[f v n] (reduce evaluatePos [false visited []] positions)]
-        (if f
-          depth
-          (recur (+ 1 depth) n v)))))
+      [[f v n] (reduce evaluatePos [false visited []] positions)]
+      (if f
+        depth
+        (recur (+ 1 depth) n v)))))
