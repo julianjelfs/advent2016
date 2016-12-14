@@ -4,6 +4,14 @@ A Clojure library designed to ... well, that part is up to you.
 
 ## Usage
 
+lein repl
+(load-file "src/clj/day11.clj")
+(in-ns `clj.day11)
+
+to reload
+(load-file "src/clj/day11.clj")
+
+
 FIXME
 
 ## License
