@@ -18,6 +18,18 @@
 
 ; (def elements [:h :l])
 
+(def fitnessSensitivity 0.023)
+
+(def getFitness 
+  (memoize 
+    (fn [pos]
+      (let [floors (:floors pos) 
+            [t f i] (reduce (fn [[total fitness index] f]
+                              [(+ total (count f)) (+ fitness (* index (count f))) (+ 1 index) ]
+                              ) [0 0 1] floors)]
+        (/ f  (* t (count floors)))))))
+
+
 (def elements [:t :pl :s :pr :r])
 
 (defn hasMatchingGenerator? [chip generators]
@@ -80,11 +92,12 @@
         fromFloor (-> (nth floors f)
                       (s/difference ,,, things))
         toFloor (-> (nth floors to)
-                    (s/union ,,, things))]
-    (assoc newPos :floors 
-           (-> floors
-               (assoc-in ,,, [f] fromFloor)
-               (assoc-in ,,, [to] toFloor)))))
+                    (s/union ,,, things))
+        updated (assoc newPos :floors 
+                       (-> floors
+                           (assoc-in ,,, [f] fromFloor)
+                           (assoc-in ,,, [to] toFloor)))]
+    (assoc updated :fitness (getFitness updated))))
 
 (def subset
   (memoize 
@@ -120,6 +133,15 @@
           (empty? (nth f 1))
           (empty? (nth f 2)))))))
 
+(defn filterByFitness [positions]
+  (if (< (count positions) 2)
+    positions
+    (let [total (->> positions
+                     (map :fitness)
+                     (reduce +))
+          avg (/ total (count positions))]
+      (filter (fn [p] (>= (:fitness p) (- avg fitnessSensitivity))) positions))))
+
 (defn evaluatePos [[foundSolution visited nextLevel] pos]
   (if foundSolution
     [foundSolution visited nextLevel]
@@ -127,7 +149,7 @@
       [true visited nextLevel]
       (let [v (conj visited (pairs pos))
             n (into nextLevel (possiblePositions v pos))]
-        [foundSolution v n]))))
+        [foundSolution v (filterByFitness  n)]))))
 
 (defn solution []
   (loop [depth 0
