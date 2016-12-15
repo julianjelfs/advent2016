@@ -20,24 +20,22 @@
 
 (def elements [:t :pl :s :pr :r])
 
-(defn matchingGenerators [generators chip]
-  (filter (fn [g] (= (:g g) (:m chip))) generators))
+(defn hasMatchingGenerator? [chip generators]
+  (contains? generators {:g (:m chip)}))
 
 (def floorValid? 
   (memoize 
     (fn [f]
       (let [s (count f)]
         (cond
-          (= 0 s) true
-          (= 1 s) true
+          (< s 2) true
           :else 
-          (let [[chips generators] (split-with :m f)
-                chipsWithoutGen (filter (fn [c]
-                                          (empty? (matchingGenerators generators c))) chips)]
-            (if (empty? chipsWithoutGen)
+          (let [generators (filter :g f)]
+            (if (empty? generators)
               true
-              (empty? generators))))))))
-
+              (reduce (fn [agg chip]
+                        (and agg (hasMatchingGenerator? chip (set generators)))
+                        ) true (filter :m f)))))))))
 
 (defn positive? [n]
   (>= n 0))
@@ -135,14 +133,12 @@
   (loop [depth 0
          positions #{initialPosition} 
          visited #{}]
-    (prn depth)
-    (prn (count positions))
-    (prn (count visited))
+    (prn (str "(" depth "," (count positions) "," (count visited) ")"))
     ;can only really get this far in at the moment
-    (if (> depth 4)
+    (if (> depth 50)
       depth
      (let 
-      [[f v n] (reduce evaluatePos [false visited []] positions)]
+      [[f v n] (reduce evaluatePos [false visited #{}] positions)]
       (if f
         depth
         (recur (+ 1 depth) n v))))))
