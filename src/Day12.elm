@@ -3,7 +3,7 @@ module Day12 exposing (..)
 import Array
 
 initialRegister =
-    Array.fromList [0,0,0,0]
+    Array.fromList [0,0,1,0]
 
 slotIndexFromSlot slot =
     case slot of
@@ -36,9 +36,13 @@ parseInstruction inst =
                     _ ->
                         let
                             from = getSlotOrValue a reg
-                            toIndex = if from > 0 then safeInt b else 0
+                            toIndex =
+                                if from > 0 then
+                                    index + (safeInt b)
+                                else
+                                    index + 1
                         in
-                            (index + toIndex, reg))
+                            (toIndex, reg))
         cmd :: slot :: [] ->
             --this one deals with inc and dec
             (\(index, reg) ->
@@ -71,6 +75,16 @@ solution () =
     input
         |> Array.map parseInstruction
         |> processInstruction (0, initialRegister)
+
+testInput =
+    Array.fromList
+    [ "cpy 41 a"
+    , "inc a"
+    , "inc a"
+    , "dec a"
+    , "jnz a 2"
+    , "dec a"
+    ]
 
 input =
     Array.fromList
