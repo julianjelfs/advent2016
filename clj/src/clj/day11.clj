@@ -1,5 +1,6 @@
 (ns clj.day11
   (:require [clojure.math.combinatorics :as combo ]
+            [taoensso.tufte :as tufte :refer (defnp p profiled profile)]
             [clojure.set :as s]))
 
 ; (def initialPosition
@@ -61,30 +62,29 @@
                         (sort merged)))))])))
 
 
-(def positionNotVisited 
-  (memoize 
-    (fn [visited pos]
-      (not (contains? visited (pairs pos))))))
+(defn positionNotVisited [visited pos]
+  (not (contains? visited (str (pairs pos)))))
 
 (def positionValid
   (memoize 
-    (fn [visited pos]
-      (and
-        (positionNotVisited visited pos)
-        (every? floorValid? (:floors pos))))))
+    (p ::position-valid
+       (fn [visited pos]
+         (and
+           (positionNotVisited visited pos)
+           (every? floorValid? (:floors pos)))))))
 
 
 (defn applyMove [from [f to] things]
-  (let [newPos (assoc from :e to)
-        floors (:floors newPos)
-        fromFloor (-> (nth floors f)
-                      (s/difference ,,, things))
-        toFloor (-> (nth floors to)
-                    (s/union ,,, things))]
-    (assoc newPos :floors 
-           (-> floors
-               (assoc-in ,,, [f] fromFloor)
-               (assoc-in ,,, [to] toFloor)))))
+  (p ::applying-move (let [newPos (assoc from :e to)
+                           floors (:floors newPos)
+                           fromFloor (-> (nth floors f)
+                                         (s/difference ,,, things))
+                           toFloor (-> (nth floors to)
+                                       (s/union ,,, things))]
+                       (assoc newPos :floors 
+                              (-> floors
+                                  (assoc-in ,,, [f] fromFloor)
+                                  (assoc-in ,,, [to] toFloor))))))
 
 (def subset
   (memoize 
@@ -93,7 +93,8 @@
            (filter (fn [s] 
                      (and 
                        (< (count s) 3) 
-                       (> (count s) 0))))))))
+                       (> (count s) 0))))
+           (map set)))))
 
 (defn possiblePositions [visited pos]
   (let [e (:e pos)
@@ -107,26 +108,26 @@
         subs (subset things) ]
     (mapcat (fn [p]
               (->> subs
-                   (map (fn [s] (applyMove pos p (set s))))
+                   (map (fn [s] (applyMove pos p s)))
                    (filter (fn [c] (positionValid visited c)))) 
               ) paths)))
 
-(def complete? 
-  (memoize
-    (fn [pos]
-      (let [f (:floors pos)]
-        (and 
-          (empty? (nth f 0))
-          (empty? (nth f 1))
-          (empty? (nth f 2)))))))
+(defn complete? [pos]
+  (let [f (:floors pos)]
+    (and 
+      (= 3 (:e pos))
+      (empty? (nth f 0))
+      (empty? (nth f 1))
+      (empty? (nth f 2)))))
 
 (defn evaluatePos [[foundSolution visited nextLevel] pos]
   (if foundSolution
     [foundSolution visited nextLevel]
     (if (complete? pos)
       [true visited nextLevel]
-      (let [v (conj visited (pairs pos))
-            n (into nextLevel (possiblePositions v pos))]
+      (let [v (conj visited (str (pairs pos)))
+            n (into nextLevel 
+                    (p ::possible-positions (possiblePositions v pos)))]
         [foundSolution v n]))))
 
 (defn solution []
@@ -135,10 +136,10 @@
          visited #{}]
     (prn (str "(" depth "," (count positions) "," (count visited) ")"))
     ;can only really get this far in at the moment
-    (if (> depth 50)
+    (if (> depth 10)
       depth
      (let 
-      [[f v n] (reduce evaluatePos [false visited #{}] positions)]
+      [[f v n] (p ::evaluting-level (reduce evaluatePos [false visited #{}] positions))]
       (if f
         depth
         (recur (+ 1 depth) n v))))))

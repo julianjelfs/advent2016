@@ -34,12 +34,6 @@ type alias Thing = (String, String)
             ])
         0-}
 
-serialisePos p =
-    p.floors
-        |> Array.foldl (\f str ->
-                str ++ (f.things |> Set.toList |> toString)
-            ) ((toString p.elevatorIndex ++ "_"))
-
 elements =
     ["T","PL","S","PR","R"]
 --    ["H","L"]
@@ -87,9 +81,8 @@ pairs pos =
                     |> List.sort
                     |> (\s -> (pos.elevatorIndex, s))
 
-matchingGenerators generators (_, ce) =
-    Set.filter
-        (\(_, ge) -> ge == ce) generators
+hasMatchingGenerators (_, e) generators =
+    Set.member ("G", e) generators
 
 floorValid floor =
     case Set.size floor.things of
@@ -104,21 +97,14 @@ floorValid floor =
                             _ -> False ) floor.things
             in
                 --floor is valid if we have both unaccompanied chips && some generators
-                (not (Set.isEmpty generators))
-                    &&
-                        (Set.filter
-                            (\c ->
-                                matchingGenerators generators c
-                                    |> Set.isEmpty) chips
-                            |> Set.isEmpty)
-
-positionsEqual p1 p2 =
-    p1 == p2
+                if Set.isEmpty generators then
+                    True
+                else
+                    Set.foldl (\c agg ->
+                       agg && (hasMatchingGenerators c generators)
+                    ) True chips
 
 positionNotVisited visited position =
-{-    visited
-        |> List.filter (positionsEqual (position.elevatorIndex, pairs position))
-        |> List.isEmpty-}
     Set.member (pairs position) visited |> not
 
 positionValid visited position =
@@ -217,8 +203,6 @@ evaluationPositions depth positions visited =
                 depth
             False ->
                 evaluationPositions (depth + 1) n v
-
---one more thing to try which is to store visited pairs in a set
 
 solution () =
     evaluationPositions 0 [initialPosition] Set.empty
