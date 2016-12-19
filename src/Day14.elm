@@ -5,21 +5,12 @@ import Dict
 import Set
 
 input = "yjdafjpo"
+--input = "abc"
 
-getHash hashes inp =
-    case Dict.get inp hashes of
-        Nothing ->
-            let
-                h = hex inp
-            in
-                (h, Dict.insert inp h hashes)
-        Just h ->
-            (h, hashes)
-
-stretchedHash hashes key =
-    List.foldl (\i (h, hs) ->
-        getHash hs h
-    ) (getHash hashes key) (List.range 0 2015)
+stretchedHash key =
+    List.foldl (\i h ->
+        hex h
+    ) (hex key) (List.range 0 2015)
 
 generateHash hashes index =
     let
@@ -28,9 +19,10 @@ generateHash hashes index =
         case Dict.get key hashes of
             Nothing ->
                 let
-                    (h, updated) = stretchedHash hashes key
+                    h = stretchedHash key
+                    --h = hex key
                 in
-                    (h, Dict.insert key h updated)
+                    (h, Dict.insert key h hashes)
             Just h ->
                 (h, hashes)
 
@@ -57,17 +49,22 @@ hashContainsFiveOfAKind c hash =
 
 futureHashesContainFiveOfAKind hashes index c =
     let
-        (next1000, updated) =
+        (next1000, updated, found) =
             List.range index (index + 999)
-                |> List.foldl (\i (hs, prev) ->
-                    let
-                        (h, updated) = generateHash prev i
-                    in
-                        (h::hs, updated)
-                ) ([], hashes)
+                |> List.foldl (\i (hs, prev, found) ->
+                    if found then
+                        (hs, prev, found)
+                    else
+                        let
+                            (h, updated) = generateHash prev i
+                        in
+                            if hashContainsFiveOfAKind c h then
+                                (h::hs, updated, True)
+                            else
+                                (hs, updated, found)
+                ) ([], hashes, False)
     in
         (next1000
-            |> List.filter (hashContainsFiveOfAKind c)
             |> List.isEmpty
             |> not, updated)
 
