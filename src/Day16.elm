@@ -12,24 +12,22 @@ targetLength =
 
 
 swap =
-    String.toList
-        >> List.map
-            (\c ->
-                case c of
-                    '0' ->
-                        '1'
+    List.map
+        (\c ->
+            case c of
+                '0' ->
+                    '1'
 
-                    '1' ->
-                        '0'
+                '1' ->
+                    '0'
 
-                    _ ->
-                        c
-            )
-        >> String.fromList
+                _ ->
+                    c
+        )
 
 
 dragonCurve str =
-    str |> reverse |> swap |> (\b -> str ++ "0" ++ b)
+    str |> List.reverse |> swap |> (\b -> List.concat [ str, [ '0' ], b ])
 
 
 processPairs result input =
@@ -62,12 +60,14 @@ getLongEnoughDragonCurve input =
         dc =
             dragonCurve input
     in
-        if (String.length dc) >= targetLength then
-            dc
+        if (List.length dc) >= targetLength then
+            dc |> List.take targetLength
+            --|> String.fromList
         else
             getLongEnoughDragonCurve dc
 
 
 calculateChecksum () =
-    getLongEnoughDragonCurve input
+    getLongEnoughDragonCurve (String.toList input)
+        |> String.fromList
         |> checksum
