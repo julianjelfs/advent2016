@@ -12,14 +12,14 @@
 
 (def initialPosition
   {:e 0
-   :floors [#{ {:g :t} {:m :t} {:g :pl} {:g :s} } 
+   :floors [#{ {:g :e} {:m :e} {:g :d} {:m :d} {:g :t} {:m :t} {:g :pl} {:g :s} } 
             #{ {:m :pl} {:m :s} }
             #{ {:g :pr} {:m :pr} {:g :r} {:m :r} }
             #{} ]})
 
 ; (def elements [:h :l])
 
-(def elements [:t :pl :s :pr :r])
+(def elements [:e :d :t :pl :s :pr :r])
 
 (defn hasMatchingGenerator? [chip generators]
   (contains? generators {:g (:m chip)}))

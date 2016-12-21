@@ -12,7 +12,7 @@ targetLength =
 
 
 swap =
-    List.map
+    String.map
         (\c ->
             case c of
                 '0' ->
@@ -27,31 +27,39 @@ swap =
 
 
 dragonCurve str =
-    str |> List.reverse |> swap |> (\b -> List.concat [ str, [ '0' ], b ])
+    str |> String.reverse |> swap |> (\b -> str ++ "0" ++ b)
 
 
 processPairs result input =
     let
         tail =
-            List.drop 2 input
+            String.dropLeft 2 input
+
+        head =
+            String.left 2 input
     in
-        case input of
-            x :: y :: _ ->
-                if x == y then
-                    processPairs (result ++ "1") tail
-                else
-                    processPairs (result ++ "0") tail
+        case head of
+            "00" ->
+                processPairs (String.cons '1' result) tail
+
+            "11" ->
+                processPairs (String.cons '1' result) tail
+
+            "01" ->
+                processPairs (String.cons '0' result) tail
+
+            "10" ->
+                processPairs (String.cons '0' result) tail
 
             _ ->
                 if (String.length result) % 2 == 0 then
-                    processPairs "" (String.toList result)
+                    processPairs "" (result |> String.reverse)
                 else
-                    result
+                    result |> String.reverse
 
 
 checksum =
     String.slice 0 targetLength
-        >> String.toList
         >> (processPairs "")
 
 
@@ -60,14 +68,12 @@ getLongEnoughDragonCurve input =
         dc =
             dragonCurve input
     in
-        if (List.length dc) >= targetLength then
-            dc |> List.take targetLength
-            --|> String.fromList
+        if (String.length dc) >= targetLength then
+            dc
         else
             getLongEnoughDragonCurve dc
 
 
 calculateChecksum () =
-    getLongEnoughDragonCurve (String.toList input)
-        |> String.fromList
+    getLongEnoughDragonCurve input
         |> checksum
