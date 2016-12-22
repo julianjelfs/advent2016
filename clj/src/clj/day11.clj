@@ -136,7 +136,7 @@
          visited #{}]
     (prn (str "(" depth "," (count positions) "," (count visited) ")"))
     ;can only really get this far in at the moment
-    (if (> depth 10)
+    (if (> depth 100)
       depth
      (let 
       [[f v n] (p ::evaluting-level (reduce evaluatePos [false visited #{}] positions))]
