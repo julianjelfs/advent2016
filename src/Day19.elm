@@ -9,7 +9,7 @@ Nicely explained here https://www.youtube.com/watch?v=uCsD3ZGzMgE
 express n as 2 ^ a + l
 then answer is 2 * l + 1
 --}
-josephus inp =
+partOne inp =
     floor (logBase 10 inp / logBase 10 2)
         |> toFloat
         |> ((^) 2.0)
@@ -17,7 +17,10 @@ josephus inp =
         |> ((*) 2)
         |> ((+) 1)
 
-sisyphus inp =
+{--
+    express n as 3 ^ a + l
+--}
+partTwo inp =
     let
         a = floor (logBase 10 inp / logBase 10 3)
             |> toFloat
