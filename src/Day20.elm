@@ -16,6 +16,10 @@ allowedNumbers allowed input n =
             if isAllowed input n then
                 (allowed + 1, n + 1)
             else
+                {--
+                    if n is not allowed we can just jump to the end of the
+                    lowest range that excluded n and proceed
+                --}
                 (allowed,
                     input
                       |> List.filter ( \( from, to ) -> n >= from && n <= to )
