@@ -5,6 +5,8 @@ import Regex exposing (..)
 
 password = "abcdefgh"
 
+scrambled = "fbgdceah"
+
 stringToInt =
     String.toInt >> Result.withDefault 0
 
@@ -12,16 +14,34 @@ testInstructions =
     [ swapPositions 4 0
     , swapLetters "d" "b"
     , reverse 0 4
-    , rotateLeft 1
+    , rotateRight 1
     , move 1 4
     , move 3 0
     , rotateBasedOn "b"
     , rotateBasedOn "d"]
 
-parsed =
+parsed parser =
     instructions
         |> String.lines
-        |> List.map parseInstruction
+        |> List.map parser
+
+reverseParseInstruction str =
+    case String.words str of
+        "rotate" :: "based" :: _ :: _ :: _ :: _ :: l :: []
+            -> reverseRotateBasedOn l
+        "rotate" :: "right" :: n :: _ :: []
+            -> rotateLeft (stringToInt n)
+        "rotate" :: "left" :: n :: _ :: []
+            -> rotateRight (stringToInt n)
+        "swap" :: "position" :: x :: _ :: _ :: y :: []
+            -> swapPositions (stringToInt x) (stringToInt y)
+        "swap" :: "letter" :: a :: _ :: _ :: b :: []
+            -> swapLetters a b
+        "move" :: _ :: x :: _ :: _ :: y :: []
+            -> move (stringToInt y) (stringToInt x)
+        "reverse" :: _ :: x :: _ :: y :: []
+            -> reverse (stringToInt x) (stringToInt y)
+        _ -> identity
 
 parseInstruction str =
     case String.words str of
@@ -42,8 +62,14 @@ parseInstruction str =
         _ -> identity
 
 scramble password =
-    parsed
+    parsed parseInstruction
         |> List.foldl (\i p -> (log "pwd" (i p))) password
+
+unscramble password =
+    parsed reverseParseInstruction
+        |> List.reverse
+        |> List.foldl (\i p -> (log "pwd" (i p))) password
+
 
 rotateLeft n str =
      (String.dropLeft n str) ++ (String.left n str)
@@ -62,6 +88,18 @@ rotate dir n str =
 
 indexOf c =
     String.indexes c >> List.head >> Maybe.withDefault -1
+
+reverseRotateBasedOn c str =
+    let
+        i = indexOf c str
+    in
+        case i of
+            0 -> rotateLeft 1 str
+            n ->
+                if n % 2 == 1 then
+                    rotateLeft (round ((toFloat (i+1))/2)) str
+                else
+                    rotateLeft ((round ((toFloat i)/2))+5) str
 
 rotateBasedOn c str =
     let
@@ -125,16 +163,6 @@ reverse x y str =
         (String.slice 0 x str)
             ++ rev
             ++ (String.slice (y+1) (String.length str) str)
-
-{--
-different kinds of instruction are:
-    rotate left/right 2 steps
-    rotate based on position of letter e
-    swap letter h with letter f
-    swap position 6 with position 4
-    move position 1 to position 2
-    reverse positions 6 through 7
---}
 
 instructions = """rotate based on position of letter a
 swap letter g with letter d
