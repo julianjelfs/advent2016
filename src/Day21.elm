@@ -1,6 +1,12 @@
 module Day21 exposing (..)
 
+import Debug exposing (log)
+import Regex exposing (..)
+
 password = "abcdefgh"
+
+stringToInt =
+    String.toInt >> Result.withDefault 0
 
 parsed =
     instructions
@@ -8,30 +14,105 @@ parsed =
         |> List.map parseInstruction
 
 parseInstruction str =
-    -- just translate each instruction into the appropriate fn
-    identity
+    case String.words str of
+        "rotate" :: "based" :: _ :: _ :: _ :: _ :: l :: []
+            -> rotateBasedOn l
+        "rotate" :: "right" :: n :: _ :: []
+            -> rotateRight (stringToInt n)
+        "swap" :: "position" :: x :: _ :: _ :: y :: []
+            -> swapPositions (stringToInt x) (stringToInt y)
+        "swap" :: "letter" :: a :: _ :: _ :: b :: []
+            -> swapLetters a b
+        "move" :: _ :: x :: _ :: _ :: y :: []
+            -> move (stringToInt x) (stringToInt y)
+        "reverse" :: _ :: x :: _ :: y :: []
+            -> reverse (stringToInt x) (stringToInt y)
+        _ -> identity
 
 scramble =
     parsed
         |> List.foldl (\i p -> i p) password
 
-rotate n str =
-    str
+rotateLeft n str =
+     (String.dropLeft n str) ++ (String.left n str)
+
+rotateRight n str =
+    (String.right n str) ++ (String.dropRight n str)
+
+rotate dir n str =
+    let
+        n_ = n % (String.length str)
+    in
+        case dir of
+            "left" -> rotateLeft n_ str
+            "right" -> rotateRight n_ str
+            _ -> str
+
+indexOf c =
+    String.indexes c >> List.head >> Maybe.withDefault -1
 
 rotateBasedOn c str =
-    str
+    let
+        i =
+            indexOf c str
+        n =
+            if i >= 4 then i + 2 else i + 1
+    in
+        if i < 0 then
+            str
+        else
+            rotate "right" n str
 
 swapLetters a b str =
-    str
+    let
+        ai =
+            indexOf a str
+        bi =
+            indexOf b str
+    in
+        swapPositions ai bi str
+
+
+stringToChar str =
+    case str |> String.uncons of
+        Just (c, _) -> c
+        Nothing -> '_'
 
 swapPositions x y str =
-    str
+    let
+        xv = String.slice x (x+1) str |> stringToChar
+        yv = String.slice y (y+1) str |> stringToChar
+
+    in
+        String.map
+            (\c ->
+                if c == xv then
+                    yv
+                else
+                    if c == yv then
+                        xv
+                    else
+                        c
+            ) str
 
 move x y str =
-    str
+    let
+        xv = String.slice x (x+1) str
+        withoutX = replace All (regex xv) (\_ -> "") str
+    in
+        (String.slice 0 y withoutX)
+            ++ xv
+            ++ (String.slice y (String.length str) withoutX)
 
 reverse x y str =
-    str
+    let
+        rev =
+            String.slice x (y+1) str
+                |> String.reverse
+    in
+        (String.slice 0 x str)
+            ++ rev
+            ++ (String.slice (y+1) (String.length str) str)
 
 {--
 different kinds of instruction are:
