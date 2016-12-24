@@ -8,6 +8,16 @@ password = "abcdefgh"
 stringToInt =
     String.toInt >> Result.withDefault 0
 
+testInstructions =
+    [ swapPositions 4 0
+    , swapLetters "d" "b"
+    , reverse 0 4
+    , rotateLeft 1
+    , move 1 4
+    , move 3 0
+    , rotateBasedOn "b"
+    , rotateBasedOn "d"]
+
 parsed =
     instructions
         |> String.lines
@@ -19,6 +29,8 @@ parseInstruction str =
             -> rotateBasedOn l
         "rotate" :: "right" :: n :: _ :: []
             -> rotateRight (stringToInt n)
+        "rotate" :: "left" :: n :: _ :: []
+            -> rotateLeft (stringToInt n)
         "swap" :: "position" :: x :: _ :: _ :: y :: []
             -> swapPositions (stringToInt x) (stringToInt y)
         "swap" :: "letter" :: a :: _ :: _ :: b :: []
@@ -29,9 +41,9 @@ parseInstruction str =
             -> reverse (stringToInt x) (stringToInt y)
         _ -> identity
 
-scramble =
+scramble password =
     parsed
-        |> List.foldl (\i p -> i p) password
+        |> List.foldl (\i p -> (log "pwd" (i p))) password
 
 rotateLeft n str =
      (String.dropLeft n str) ++ (String.left n str)
