@@ -2,13 +2,6 @@ module Day22 exposing (..)
 
 import Regex exposing (..)
 
-{--
-    viable pairs are:
-    Node A is not empty
-    Node A /= B
-    Node A's data fits on node B
---}
-
 type alias Node =
     { x: Int
     , y: Int
@@ -50,6 +43,16 @@ parseInput =
     raw
         |> String.lines
         |> List.map parseNode
+
+filterInvalid =
+    List.filter (\(a, _) -> a.used /= 0)
+    >> List.filter (\(a, b) -> a /= b)
+    >> List.filter (\(a, b) -> a.used <= b.avail)
+
+validPairs nodes =
+    List.concatMap (\n1 -> List.map (\n2 -> (n1, n2)) nodes ) nodes
+        |> filterInvalid
+        |> List.length
 
 --Filesystem              Size  Used  Avail  Use%
 raw = """/dev/grid/node-x0-y0     85T   72T    13T   84%
