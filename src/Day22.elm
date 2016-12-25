@@ -54,6 +54,32 @@ validPairs nodes =
         |> filterInvalid
         |> List.length
 
+max fn =
+    List.map fn >> List.maximum >> Maybe.withDefault 0
+
+{--
+Can do this with a bfs but I'd like to do it with Dijkstra just to learn something
+--}
+emptyToGoal =
+    10
+
+part2 nodes =
+    let
+        x = max .x nodes
+        n = emptyToGoal
+    in
+        --moving the goal to the target once we have the empty slot next to is
+        --just a sum, no need to figure it out
+        n + ((x - 1) * 5) + 1
+
+
+prettyPrint nodes =
+    let
+        x = max .x nodes
+        y = max .y nodes
+    in
+        (x,y)
+
 --Filesystem              Size  Used  Avail  Use%
 raw = """/dev/grid/node-x0-y0     85T   72T    13T   84%
 /dev/grid/node-x0-y1     89T   73T    16T   82%
