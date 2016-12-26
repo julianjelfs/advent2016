@@ -1,6 +1,8 @@
 module Day22 exposing (..)
 
+import Debug exposing (log)
 import Regex exposing (..)
+import Dict
 
 type alias Node =
     { x: Int
@@ -8,7 +10,9 @@ type alias Node =
     , size: Int
     , used: Int
     , avail: Int
-    , use: Int }
+    , use: Int
+    , distance: Float
+    , visited: Bool }
 
 dropLast =
     String.dropRight 1 >> stringToInt
@@ -29,20 +33,27 @@ parseNode str =
                                     [Just x, Just y] -> (x, y)
                                     _ -> ("-1", "-1"))
                         |> Maybe.withDefault ("-1", "-1")
+                (x1, y1) =
+                    (stringToInt x, stringToInt y)
             in
+                ((x1, y1),
                 Node
-                    (stringToInt x)
-                    (stringToInt y)
+                    x1
+                    y1
                     (dropLast size)
                     (dropLast used)
                     (dropLast avail)
                     (dropLast use)
+                    (if x1 == 24 && y1 == 26 then 0 else (1/0)) --Infinity
+                    False --visited
+                    )
         _ -> Debug.crash "Invalid node"
 
 parseInput =
     raw
         |> String.lines
         |> List.map parseNode
+        |> Dict.fromList
 
 filterInvalid =
     List.filter (\(a, _) -> a.used /= 0)
@@ -54,31 +65,72 @@ validPairs nodes =
         |> filterInvalid
         |> List.length
 
-max fn =
-    List.map fn >> List.maximum >> Maybe.withDefault 0
+maxX = 31
+
+findNode nodes (x, y) =
+    Dict.get (x, y) nodes
+
+{--
+get all neighbours, pair them up with the current node, filter out invalid pairs
+then get the resulting valid nodes
+--}
+neighbours nodes n =
+    [(n.x, n.y-1), (n.x, n.y+1), (n.x+1, n.y), (n.x-1, n.y)]
+        |> List.filterMap (findNode nodes)
+        |> List.filter
+            (\n1 -> n1.used <= n.avail)
+
+updateNodes nodes =
+   List.foldl (\n nodes ->
+        Dict.update (n.x, n.y)
+            (\mv -> Maybe.map (\v -> n) mv) nodes) nodes
+
+shortestNotVisited =
+    Dict.filter (\_ n -> (not n.visited))
+        >> (Dict.foldl
+            (\k n shortest ->
+                case shortest of
+                    Nothing -> Just n
+                    Just s ->
+                        if n.distance < s.distance then
+                            Just n
+                        else
+                            shortest) Nothing)
 
 {--
 Can do this with a bfs but I'd like to do it with Dijkstra just to learn something
 --}
-emptyToGoal =
-    10
+emptyToGoal nodes =
+    case shortestNotVisited nodes of
+        Nothing -> (1/0) --there is no solution
+        Just n ->
+            --if we have arrived at the target return the distance
+            if n.x == (maxX-1) && n.y == 0 then
+                n.distance
+            else
+                --otherwise find the valid neighbours and update their distances
+                --accordingly and recurse
+                neighbours nodes n
+                    |> List.map (\v ->
+                        if (n.distance + 1) < v.distance then
+                            {v|distance = n.distance + 1
+                            , used = 0
+                            , avail = v.size
+                            }
+                        else
+                            v)
+                    |> ((::) {n | visited = True})  --make sure we don't visit this node again
+                    |> updateNodes nodes
+                    |> emptyToGoal
 
 part2 nodes =
     let
-        x = max .x nodes
-        n = emptyToGoal
+        n = emptyToGoal nodes
     in
         --moving the goal to the target once we have the empty slot next to is
         --just a sum, no need to figure it out
-        n + ((x - 1) * 5) + 1
+        n + ((maxX - 1) * 5) + 1
 
-
-prettyPrint nodes =
-    let
-        x = max .x nodes
-        y = max .y nodes
-    in
-        (x,y)
 
 --Filesystem              Size  Used  Avail  Use%
 raw = """/dev/grid/node-x0-y0     85T   72T    13T   84%
