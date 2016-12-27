@@ -25,33 +25,47 @@ parseInstruction inst =
     case String.words inst of
         cmd :: a :: b :: [] ->
             --this one deals with cpy and jnz
-            (\(index, reg) ->
-                case cmd of
-                    "cpy" ->
-                        let
-                            from = getSlotOrValue a reg
-                            to = slotIndexFromSlot b
-                        in
-                            (index + 1, Array.set to from reg)
-                    _ ->
-                        let
-                            from = getSlotOrValue a reg
-                            toIndex =
-                                if from > 0 then
-                                    index + (safeInt b)
-                                else
-                                    index + 1
-                        in
-                            (toIndex, reg))
-        cmd :: slot :: [] ->
-            --this one deals with inc, dec and tgl
-            (\(index, reg) ->
+            (\(index, reg, toggles) ->
                 let
+                    toggle = Set.member index toggles
+                in
+                    case cmd of
+                        "cpy" ->
+                            let
+                                from = getSlotOrValue a reg
+                                to = slotIndexFromSlot b
+                            in
+                                (index + 1, Array.set to from reg, toggles)
+                        _ ->
+                            let
+                                from = getSlotOrValue a reg
+                                toIndex =
+                                    if from > 0 then
+                                        index + (safeInt b)
+                                    else
+                                        index + 1
+                            in
+                                (toIndex, reg, toggles))
+
+        {--
+            this is made a lot more awkward by the way I did day 12, but I don't want to start from scratch
+        --}
+        "tgl" :: slot :: [] ->
+            (\(index, reg, toggles) ->
+                ( index
+                , reg
+                , (Set.insert (getSlotOrValue slot reg) toggles)))
+
+        cmd :: slot :: [] ->
+            --this one deals with inc and dec
+            (\(index, reg, toggles) ->
+                let
+                    toggle = Set.member index toggles
+
                     change =
                         case cmd of
                             "dec" -> (\v -> v - 1)
-                            "inc" -> (\v -> v + 1)
-                            _ -> (\v -> v)
+                            _ -> (\v -> v + 1)
 
                     slotIndex =
                         slotIndexFromSlot slot
@@ -62,20 +76,21 @@ parseInstruction inst =
                             |> Maybe.andThen (\v -> Just (Array.set slotIndex v reg))
                  in
                     case updated of
-                        Nothing -> (index, reg)
-                        Just r -> (index + 1, r))
+                        Nothing -> (index, reg, toggles)
+                        Just r -> (index + 1, r, toggles))
+
         _ -> (\x -> x)
 
-processInstruction (index, reg) inp =
+processInstruction (index, reg, toggles) inp =
     case Array.get index inp of
         Nothing -> reg
         Just fn ->
-            processInstruction (fn (index, reg)) inp
+            processInstruction (fn (index, reg, toggles)) inp
 
 solution () =
-    input
+    testInput
         |> Array.map parseInstruction
-        |> processInstruction (0, initialRegister)
+        |> processInstruction (0, initialRegister, Set.empty)
 
 testInput =
     Array.fromList
