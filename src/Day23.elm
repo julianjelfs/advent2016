@@ -1,9 +1,11 @@
 module Day23 exposing (..)
 
 import Array
+import Debug exposing (log)
+import Set
 
 initialRegister =
-    Array.fromList [7,0,0,0]
+    Array.fromList [12,0,0,0]
 
 slotIndexFromSlot slot =
     case slot of
@@ -21,76 +23,164 @@ getSlotOrValue x reg =
         -1 -> safeInt x
         n -> Array.get n reg |> Maybe.withDefault 0
 
+updateRegister slot value reg =
+    let
+        slotIndex =
+            slotIndexFromSlot slot
+    in
+        Array.get slotIndex reg
+            |> Maybe.andThen (\v -> Just value)
+            |> Maybe.andThen (\v -> Just (Array.set slotIndex v reg))
+            |> Maybe.withDefault reg
+
+inc index reg slot inp =
+    let
+        slotIndex =
+            slotIndexFromSlot slot
+
+        updated =
+             Array.get slotIndex reg
+                |> Maybe.andThen (\v -> Just (v + 1))
+                |> Maybe.andThen (\v -> Just (Array.set slotIndex v reg))
+    in
+        case updated of
+            Nothing -> (index, reg, inp)
+            Just r -> (index + 1, r, inp)
+
+dec index reg slot inp =
+    let
+        slotIndex =
+            slotIndexFromSlot slot
+
+        updated =
+             Array.get slotIndex reg
+                |> Maybe.andThen (\v -> Just (v - 1))
+                |> Maybe.andThen (\v -> Just (Array.set slotIndex v reg))
+    in
+        case updated of
+            Nothing -> (index, reg, inp)
+            Just r -> (index + 1, r, inp)
+
+cpy index reg a b inp =
+    let
+        from = getSlotOrValue a reg
+        to = slotIndexFromSlot b
+    in
+        (index + 1, Array.set to from reg, inp)
+
+{--
+    if a > 0 jump to index + b
+--}
+jnz index reg a b inp =
+    let
+        from = getSlotOrValue a reg
+        toIndex =
+            if from > 0 then
+                index + (getSlotOrValue b reg)
+            else
+                index + 1
+    in
+        (toIndex, reg, inp)
+
+type Instruction =
+    Cpy String String
+    | Jnz String String
+    | Inc String
+    | Dec String
+    | Tgl String
+
 parseInstruction inst =
     case String.words inst of
         cmd :: a :: b :: [] ->
-            --this one deals with cpy and jnz
-            (\(index, reg, toggles) ->
-                let
-                    toggle = Set.member index toggles
-                in
-                    case cmd of
-                        "cpy" ->
-                            let
-                                from = getSlotOrValue a reg
-                                to = slotIndexFromSlot b
-                            in
-                                (index + 1, Array.set to from reg, toggles)
-                        _ ->
-                            let
-                                from = getSlotOrValue a reg
-                                toIndex =
-                                    if from > 0 then
-                                        index + (safeInt b)
-                                    else
-                                        index + 1
-                            in
-                                (toIndex, reg, toggles))
-
-        {--
-            this is made a lot more awkward by the way I did day 12, but I don't want to start from scratch
-        --}
+            case cmd of
+                "cpy" -> Cpy a b
+                _ -> Jnz a b
         "tgl" :: slot :: [] ->
-            (\(index, reg, toggles) ->
-                ( index
-                , reg
-                , (Set.insert (getSlotOrValue slot reg) toggles)))
-
+            Tgl slot
         cmd :: slot :: [] ->
-            --this one deals with inc and dec
-            (\(index, reg, toggles) ->
-                let
-                    toggle = Set.member index toggles
+            case cmd of
+                "inc" -> Inc slot
+                _ -> Dec slot
+        _ -> Debug.crash ("unexpected instruction")
 
-                    change =
-                        case cmd of
-                            "dec" -> (\v -> v - 1)
-                            _ -> (\v -> v + 1)
+tgl input index reg slot =
+    let
+        i = index + (getSlotOrValue slot reg)
 
-                    slotIndex =
-                        slotIndexFromSlot slot
+        maybeToggled =
+            Array.get i input
+                |> Maybe.andThen
+                    (\inst ->
+                        (case inst of
+                            Inc slot -> Dec slot
+                            Dec slot -> Inc slot
+                            Tgl slot -> Inc slot
+                            Cpy a b -> Jnz a b
+                            Jnz a b -> Cpy a b)
+                        |> Just)
+    in
+        case maybeToggled of
+            Nothing -> (index+1, reg, input)
+            Just toggled ->
+                (index+1, reg, Array.set i toggled input)
 
-                    updated =
-                         Array.get slotIndex reg
-                            |> Maybe.andThen (\v -> Just (change v))
-                            |> Maybe.andThen (\v -> Just (Array.set slotIndex v reg))
-                 in
-                    case updated of
-                        Nothing -> (index, reg, toggles)
-                        Just r -> (index + 1, r, toggles))
+getMultiplication index inp =
+    if index + 2 >= (Array.length inp) then
+        Nothing
+    else
+        let
+            one = Array.get index inp
+            two = Array.get (index+1) inp
+            three = Array.get (index+2) inp
+        in
+            case one of
+                Just (Inc a) ->
+                    case two of
+                        Just (Dec b) ->
+                            case three of
+                                Just (Jnz c d) ->
+                                    if b == c && (safeInt d) == -2 then
+                                        Just (a, b)
+                                    else
+                                        Nothing
+                                _ -> Nothing
+                        _ -> Nothing
+                _ -> Nothing
 
-        _ -> (\x -> x)
-
-processInstruction (index, reg, toggles) inp =
+processInstruction (index, reg, inp) =
     case Array.get index inp of
         Nothing -> reg
-        Just fn ->
-            processInstruction (fn (index, reg, toggles)) inp
+        Just i ->
+            let
+                res =
+                    case i of
+                        Inc slot ->
+                            let
+                                maybeMult =
+                                    getMultiplication index inp
+                            in
+                                case maybeMult of
+                                    Nothing ->
+                                        inc index reg slot inp
+                                    Just (a, b) ->
+                                        let
+                                            sum =
+                                                (getSlotOrValue a reg) + (getSlotOrValue b reg)
+                                        in
+                                            ( index + 3
+                                            , reg
+                                                |> updateRegister a sum
+                                                |> updateRegister b 0
+                                            , inp )
+                        Dec slot -> dec index reg slot inp
+                        Cpy a b -> cpy index reg a b inp
+                        Jnz a b -> jnz index reg a b inp
+                        Tgl slot -> tgl inp index reg slot
+            in
+                processInstruction res
 
 solution () =
-    testInput
-        |> Array.map parseInstruction
-        |> processInstruction (0, initialRegister, Set.empty)
+    processInstruction (0, initialRegister, (Array.map parseInstruction input))
 
 testInput =
     Array.fromList
