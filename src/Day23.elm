@@ -62,11 +62,17 @@ dec index reg slot inp =
             Just r -> (index + 1, r, inp)
 
 cpy index reg a b inp =
-    let
-        from = getSlotOrValue a reg
-        to = slotIndexFromSlot b
-    in
-        (index + 1, Array.set to from reg, inp)
+    --b should be a slot, but if it's been toggle from jnz it may be a number
+    --in which case we skip
+    case (String.toInt b) of
+         Err _ ->
+            let
+                from = getSlotOrValue a reg
+                to = slotIndexFromSlot b
+            in
+                (index + 1, Array.set to from reg, inp)
+         Ok _ ->
+            (index+1, reg, inp)
 
 {--
     if a > 0 jump to index + b
