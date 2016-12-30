@@ -1,35 +1,107 @@
 module Day24 exposing (..)
 
-{--
-Here's the plan ...
-    * find the set of numbers I have to find
-    * create all possible pairs
-    * calculate the shortest route from a -> b in each pair using bfs or Dijkstra
-    * for all subsets that include all the numbers find the one with the min total steps
-urhghh - can't be bothered
---}
+import Set
+import Dict
+import List.Extra exposing (permutations)
+import Tuple
 
-type CellState =
-    Empty
-    | Wall
-    | Number Char
+parseCol start y x c =
+    let
+        d =
+            if c == start then
+                0
+            else
+                1/0
+    in
+        (x, y, c, d, False)
 
-parseCol y x c =
-    case c of
-        '#' -> (x, y, Wall)
-        '.' -> (x, y, Empty)
-        n -> (x, y, (Number n))
-
-parseRow y =
+parseRow start y =
     String.toList
-        >> (List.indexedMap (parseCol y))
+        >> (List.indexedMap (parseCol start y))
 
-parseMaze =
+parseMaze start =
     raw
         |> String.lines
-        |> List.indexedMap parseRow
+        |> List.indexedMap (parseRow start)
         |> List.concatMap identity
 
+nearestNotVisited =
+    List.filter (\(_, _, _, _, v) -> not v)
+        >> List.sortBy (\(_, _, _, d, _) -> d)
+        >> List.head
+
+findCell maze (x, y) =
+    maze
+        |> List.filter (\(x1, y1, _, _, _) -> x == x1 && y == y1)
+        |> List.head
+
+neighbours maze (x, y) =
+    [(x, y-1), (x, y+1), (x+1, y), (x-1, y)]
+        |> List.filterMap (findCell maze)
+        |> List.filter
+            (\(_, _, c, _, v) ->
+                c /= '#' && (not v))
+
+updateMaze maze updated =
+    List.map (\((x, y, c, d, v) as n) ->
+        case findCell updated (x, y) of
+            Nothing -> n
+            Just u -> u ) maze
+
+shortestPathTo t maze =
+    case nearestNotVisited maze of
+        Nothing -> (1/0) --there is no solution
+        Just (x, y, c, d, v) ->
+            if c == t then
+                d
+            else
+                neighbours maze (x, y)
+                    |> List.map (\(x1, y1, c1, d1, v1) ->
+                        if (d + 1) < d1 then
+                            (x1, y1, c1, d+1, v1)
+                        else
+                            (x1, y1, c1, d1, v1))
+                    |> ((::) (x,y,c,d,True))  --make sure we don't visit this node again
+                    |> updateMaze maze
+                    |> (shortestPathTo t)
+
+calculateRoute pathCache route =
+    route
+        |> List.foldl
+            (\n (prev, total, cache) ->
+                let
+                    m = parseMaze prev
+                    (d, updatedCache) =
+                        case Dict.get (prev, n) cache of
+                            Nothing ->
+                                let
+                                    s = shortestPathTo n m
+                                in
+                                    (s, Dict.insert (prev, n) s cache)
+                            Just s ->
+                                (s, cache)
+                in
+                    (n, total + d, updatedCache)) ('0', 0, pathCache)
+
+solve () =
+    ['1','2','3','4','5','6','7']
+        |> permutations
+        |> List.foldl
+            (\r (shortest, p) ->
+                let
+                    (_, t, c) = calculateRoute p r
+                in
+                    if t < shortest then
+                        (t, c)
+                    else
+                        (shortest, c)) (100000, Dict.empty)
+        |> Tuple.first
+
+test = """###########
+#0.1.....2#
+#.#######.#
+#4.......3#
+###########"""
 
 raw = """###################################################################################################################################################################################
 #.....#.#.....#...#....4#.....#.#...#.........#...#...............#...................#...#.#...........#.#...........#.#.#.#.........#.#.......#...#...........#.....#...#7..#.#.#
