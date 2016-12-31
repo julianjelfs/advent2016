@@ -5,7 +5,7 @@ import Debug exposing (log)
 import Set
 
 initialRegister =
-    Array.fromList [1,0,0,0]
+    Array.fromList [0,0,0,0]
 
 slotIndexFromSlot slot =
     case slot of
@@ -33,13 +33,20 @@ updateRegister slot value reg =
             |> Maybe.andThen (\v -> Just (Array.set slotIndex v reg))
             |> Maybe.withDefault reg
 
-out index reg slot inp =
+out index reg slot inp lastOut =
     let
         s = log "S" (getSlotOrValue slot reg)
     in
-        (index+1, reg, inp)
+        case lastOut of
+            Nothing -> (index+1, reg, inp, Just s)
+            Just prev ->
+                if prev == s then
+                    --no good
+                    (index+1, reg, inp, Just -1)
+                else
+                    (index+1, reg, inp, Just s)
 
-inc index reg slot inp =
+inc index reg slot inp lastOut =
     let
         slotIndex =
             slotIndexFromSlot slot
@@ -50,10 +57,10 @@ inc index reg slot inp =
                 |> Maybe.andThen (\v -> Just (Array.set slotIndex v reg))
     in
         case updated of
-            Nothing -> (index, reg, inp)
-            Just r -> (index + 1, r, inp)
+            Nothing -> (index, reg, inp, lastOut)
+            Just r -> (index + 1, r, inp, lastOut)
 
-dec index reg slot inp =
+dec index reg slot inp lastOut =
     let
         slotIndex =
             slotIndexFromSlot slot
@@ -64,10 +71,10 @@ dec index reg slot inp =
                 |> Maybe.andThen (\v -> Just (Array.set slotIndex v reg))
     in
         case updated of
-            Nothing -> (index, reg, inp)
-            Just r -> (index + 1, r, inp)
+            Nothing -> (index, reg, inp, lastOut)
+            Just r -> (index + 1, r, inp, lastOut)
 
-cpy index reg a b inp =
+cpy index reg a b inp lastOut =
     --b should be a slot, but if it's been toggle from jnz it may be a number
     --in which case we skip
     case (String.toInt b) of
@@ -76,14 +83,14 @@ cpy index reg a b inp =
                 from = getSlotOrValue a reg
                 to = slotIndexFromSlot b
             in
-                (index + 1, Array.set to from reg, inp)
+                (index + 1, Array.set to from reg, inp, lastOut)
          Ok _ ->
-            (index+1, reg, inp)
+            (index+1, reg, inp, lastOut)
 
 {--
     if a > 0 jump to index + b
 --}
-jnz index reg a b inp =
+jnz index reg a b inp lastOut =
     let
         from = getSlotOrValue a reg
         toIndex =
@@ -92,7 +99,7 @@ jnz index reg a b inp =
             else
                 index + 1
     in
-        (toIndex, reg, inp)
+        (toIndex, reg, inp, lastOut)
 
 type Instruction =
     Cpy String String
@@ -114,25 +121,49 @@ parseInstruction inst =
                 _ -> Out slot
         _ -> Debug.crash ("unexpected instruction")
 
-processInstruction iteration (index, reg, inp) =
+processInstruction iteration (index, reg, inp, lastOut) =
     case Array.get index inp of
-        Nothing -> reg
+        Nothing -> False
         Just i ->
-            let
-                res =
-                    case i of
-                        Inc slot -> inc index reg slot inp
-                        Dec slot -> dec index reg slot inp
-                        Out slot -> out index reg slot inp
-                        Cpy a b -> cpy index reg a b inp
-                        Jnz a b -> jnz index reg a b inp
-            in
-                case iteration > 1000 of
-                    True -> reg
-                    False -> processInstruction (iteration + 1) res
+            case lastOut of
+                Just -1 -> False
+                _ ->
+                    let
+                        res =
+                            case i of
+                                Inc slot -> inc index reg slot inp lastOut
+                                Dec slot -> dec index reg slot inp lastOut
+                                Out slot -> out index reg slot inp lastOut
+                                Cpy a b -> cpy index reg a b inp lastOut
+                                Jnz a b -> jnz index reg a b inp lastOut
+                    in
+                        case iteration > 100000 of
+                            True -> True
+                            False -> processInstruction (iteration + 1) res
 
-solution () =
-    processInstruction 0 (0, initialRegister, (Array.map parseInstruction input))
+{--
+    try an initial register. Keep a record of the most recently output value
+    as soon as we receive an output that is not the opposite of the last we
+    can stop. If we get to x iterations with out a problem, we assume we are done.
+--}
+solution initialRegister =
+    let
+        inp = Array.map parseInstruction input
+    in
+        List.range 0 100000
+            |> List.foldl
+                (\n pass ->
+                    if pass /= Nothing then
+                        pass
+                    else
+                        let
+                            reg = updateRegister "a" n initialRegister
+                            ok = processInstruction 0 (0, reg, inp, Nothing)
+                        in
+                            if ok then
+                                Just n
+                            else
+                                pass) Nothing
 
 input =
     String.lines raw
