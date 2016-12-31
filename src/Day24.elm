@@ -86,6 +86,7 @@ calculateRoute pathCache route =
 solve () =
     ['1','2','3','4','5','6','7']
         |> permutations
+        |> List.map (\p -> List.append p ['0']) --back to zero
         |> List.foldl
             (\r (shortest, p) ->
                 let
