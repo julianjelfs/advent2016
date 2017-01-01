@@ -1,6 +1,5 @@
 (ns clj.day11
   (:require [clojure.math.combinatorics :as combo ]
-            [taoensso.tufte :as tufte :refer (defnp p profiled profile)]
             [clojure.set :as s]))
 
 ; (def initialPosition
@@ -10,7 +9,17 @@
 ;             #{ {:g :l} }
 ;             #{} ]})
 
-(def initialPosition
+(def completeSet 
+  (reduce s/union (:floors ip1)))
+
+(def ip1
+  {:e 0
+   :floors [#{ {:g :t} {:m :t} {:g :pl} {:g :s} } 
+            #{ {:m :pl} {:m :s} }
+            #{ {:g :pr} {:m :pr} {:g :r} {:m :r} }
+            #{} ]})
+
+(def ip2
   {:e 0
    :floors [#{ {:g :e} {:m :e} {:g :d} {:m :d} {:g :t} {:m :t} {:g :pl} {:g :s} } 
             #{ {:m :pl} {:m :s} }
@@ -19,7 +28,8 @@
 
 ; (def elements [:h :l])
 
-(def elements [:e :d :t :pl :s :pr :r])
+;(def elements [:e :d :t :pl :s :pr :r])
+(def elements [:t :pl :s :pr :r])
 
 (defn hasMatchingGenerator? [chip generators]
   (contains? generators {:g (:m chip)}))
@@ -53,29 +63,26 @@
 (def pairs 
   (memoize 
     (fn [pos]
-      [(:e pos)
-       (->> elements
-            (mapcat (fn [e]
-                      (let [chipFloors (floors pos e :m)
-                            genFloors (floors pos e :g)
-                            merged (map (fn [c g] [c g] ) chipFloors genFloors)]
-                        (sort merged)))))])))
+      (let [e (:e pos)
+            f (:floors pos)]
+        [(:e pos)
+         (map #(count (filter :g %1)) f)
+         (map #(count (filter :m %1)) f)]))))
 
 
 (defn positionNotVisited [visited pos]
-  (not (contains? visited (str (pairs pos)))))
+  (not (contains? visited (pairs pos))))
 
 (def positionValid
   (memoize 
-    (p ::position-valid
        (fn [visited pos]
          (and
            (positionNotVisited visited pos)
-           (every? floorValid? (:floors pos)))))))
+           (every? floorValid? (:floors pos))))))
 
 
 (defn applyMove [from [f to] things]
-  (p ::applying-move (let [newPos (assoc from :e to)
+  (let [newPos (assoc from :e to)
                            floors (:floors newPos)
                            fromFloor (-> (nth floors f)
                                          (s/difference ,,, things))
@@ -84,9 +91,21 @@
                        (assoc newPos :floors 
                               (-> floors
                                   (assoc-in ,,, [f] fromFloor)
-                                  (assoc-in ,,, [to] toFloor))))))
+                                  (assoc-in ,,, [to] toFloor)))))
 
 (def subset
+  (memoize
+    (fn [things]
+      (set
+        (map set 
+             (let [t (seq things)]
+               (concat (map (fn [thing] [thing]) t)
+                       (for [a t
+                             b t
+                             :when (not (= a b))]
+                         [a b]))))))))
+
+(def subset2
   (memoize 
     (fn [things]
       (->> (combo/subsets (seq things))
@@ -108,7 +127,7 @@
         subs (subset things) ]
     (mapcat (fn [p]
               (->> subs
-                   (map (fn [s] (applyMove pos p s)))
+                   (map (fn [s] (applyMove pos p (set s))))
                    (filter (fn [c] (positionValid visited c)))) 
               ) paths)))
 
@@ -125,21 +144,21 @@
     [foundSolution visited nextLevel]
     (if (complete? pos)
       [true visited nextLevel]
-      (let [v (conj visited (str (pairs pos)))
+      (let [v (conj visited (pairs pos))
             n (into nextLevel 
-                    (p ::possible-positions (possiblePositions v pos)))]
+                    (possiblePositions v pos))]
         [foundSolution v n]))))
 
 (defn solution []
   (loop [depth 0
-         positions #{initialPosition} 
+         positions #{ip1} 
          visited #{}]
     (prn (str "(" depth "," (count positions) "," (count visited) ")"))
     ;can only really get this far in at the moment
     (if (> depth 100)
       depth
      (let 
-      [[f v n] (p ::evaluting-level (reduce evaluatePos [false visited #{}] positions))]
+      [[f v n] (reduce evaluatePos [false visited #{}] positions)]
       (if f
         depth
         (recur (+ 1 depth) n v))))))
