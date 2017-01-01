@@ -8,16 +8,34 @@
 ;             #{ {:g :h} }
 ;             #{ {:g :l} }
 ;             #{} ]})
+;
 
-(def completeSet 
-  (reduce s/union (:floors ip1)))
+;elements
+;:t 1
+;:pl 2
+;:s 3
+;:pr 4
+;:r 5
+;:e 6
+;:d 7
+; positive is generator, negative is chip
 
-(def ip1
+
+(def ip1 
   {:e 0
-   :floors [#{ {:g :t} {:m :t} {:g :pl} {:g :s} } 
-            #{ {:m :pl} {:m :s} }
-            #{ {:g :pr} {:m :pr} {:g :r} {:m :r} }
-            #{} ]})
+   :floors [#{1 -1 2 3}
+            #{-2 -3}
+            #{4 -4 5 -5}
+            #{}]})
+
+(defn negate [n]
+  (* -1 n))
+
+(defn generator? [n]
+  (> n 0))
+
+(defn chip? [n]
+  (not (generator? n)))
 
 (def ip2
   {:e 0
@@ -26,13 +44,9 @@
             #{ {:g :pr} {:m :pr} {:g :r} {:m :r} }
             #{} ]})
 
-; (def elements [:h :l])
-
-;(def elements [:e :d :t :pl :s :pr :r])
-(def elements [:t :pl :s :pr :r])
 
 (defn hasMatchingGenerator? [chip generators]
-  (contains? generators {:g (:m chip)}))
+  (contains? generators (negate chip)))
 
 (def floorValid? 
   (memoize 
@@ -41,34 +55,22 @@
         (cond
           (< s 2) true
           :else 
-          (let [generators (filter :g f)]
+          (let [generators (filter generator? f)]
             (if (empty? generators)
               true
               (reduce (fn [agg chip]
                         (and agg (hasMatchingGenerator? chip (set generators)))
-                        ) true (filter :m f)))))))))
+                        ) true (filter chip? f)))))))))
 
 (defn positive? [n]
   (>= n 0))
 
-(defn floors [pos e t] 
-  (->> 
-    (map-indexed 
-      (fn [i f]
-        (if (contains? f {t e})
-          i
-          -1)) (:floors pos))
-    (filter positive?)))
-
 (def pairs 
   (memoize 
     (fn [pos]
-      (let [e (:e pos)
-            f (:floors pos)]
-        [(:e pos)
-         (map #(count (filter :g %1)) f)
-         (map #(count (filter :m %1)) f)]))))
-
+      (let [f (:floors pos)]
+        (str [(:e pos)
+               (map #(reduce + %1) f)])))))
 
 (defn positionNotVisited [visited pos]
   (not (contains? visited (pairs pos))))
@@ -83,15 +85,15 @@
 
 (defn applyMove [from [f to] things]
   (let [newPos (assoc from :e to)
-                           floors (:floors newPos)
-                           fromFloor (-> (nth floors f)
-                                         (s/difference ,,, things))
-                           toFloor (-> (nth floors to)
-                                       (s/union ,,, things))]
-                       (assoc newPos :floors 
-                              (-> floors
-                                  (assoc-in ,,, [f] fromFloor)
-                                  (assoc-in ,,, [to] toFloor)))))
+        floors (:floors newPos)
+        fromFloor (-> (nth floors f)
+                      (s/difference ,,, things))
+        toFloor (-> (nth floors to)
+                    (s/union ,,, things))]
+    (assoc newPos :floors 
+           (-> floors
+               (assoc-in ,,, [f] fromFloor)
+               (assoc-in ,,, [to] toFloor)))))
 
 (def subset
   (memoize
@@ -100,34 +102,21 @@
         (map set 
              (let [t (seq things)]
                (concat (map (fn [thing] [thing]) t)
-                       (for [a t
-                             b t
-                             :when (not (= a b))]
-                         [a b]))))))))
-
-(def subset2
-  (memoize 
-    (fn [things]
-      (->> (combo/subsets (seq things))
-           (filter (fn [s] 
-                     (and 
-                       (< (count s) 3) 
-                       (> (count s) 0))))
-           (map set)))))
+                       (combo/combinations things 2))))))))
 
 (defn possiblePositions [visited pos]
   (let [e (:e pos)
         things (nth (:floors pos) e)
         paths (cond
-                (= 0 e) [[0 1]]
-                (= 1 e) [[1 0] [1 2]]
-                (= 2 e) [[2 1] [2 3]]
-                (= 3 e) [[3 2]]
+                (= 0 e) [1]
+                (= 1 e) [0 2]
+                (= 2 e) [1 3]
+                (= 3 e) [2]
                 :else [])
         subs (subset things) ]
     (mapcat (fn [p]
               (->> subs
-                   (map (fn [s] (applyMove pos p (set s))))
+                   (map (fn [s] (applyMove pos [e p] (set s))))
                    (filter (fn [c] (positionValid visited c)))) 
               ) paths)))
 
