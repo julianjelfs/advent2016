@@ -2,14 +2,6 @@
   (:require [clojure.math.combinatorics :as combo ]
             [clojure.set :as s]))
 
-; (def initialPosition
-;   {:e 0
-;    :floors [#{ {:m :h} {:m :l}} 
-;             #{ {:g :h} }
-;             #{ {:g :l} }
-;             #{} ]})
-;
-
 ;elements
 ;:t 1
 ;:pl 2
@@ -20,10 +12,12 @@
 ;:d 7
 ; positive is generator, negative is chip
 
+(def visited (atom #{}))
 
-(def ip1 
+(def ip1
   {:e 0
-   :floors [#{1 -1 2 3}
+   :floors [#{6 -6 7 -7 1 -1 2 3}
+   ;:floors [#{1 -1 2 3}
             #{-2 -3}
             #{4 -4 5 -5}
             #{}]})
@@ -36,14 +30,6 @@
 
 (defn chip? [n]
   (not (generator? n)))
-
-(def ip2
-  {:e 0
-   :floors [#{ {:g :e} {:m :e} {:g :d} {:m :d} {:g :t} {:m :t} {:g :pl} {:g :s} } 
-            #{ {:m :pl} {:m :s} }
-            #{ {:g :pr} {:m :pr} {:g :r} {:m :r} }
-            #{} ]})
-
 
 (defn hasMatchingGenerator? [chip generators]
   (contains? generators (negate chip)))
@@ -74,20 +60,19 @@
 (def pairs 
   (memoize 
     (fn [pos]
-      (let [f (:floors pos)]
-        [(:e pos)
-               (map (fn [flr]
-                      [(chipCount flr) (generatorCount flr)]
-                      ) f)]))))
+      (hash [(:e pos)
+             (map 
+               (fn [flr]
+                 [(chipCount flr) (generatorCount flr)]
+                 ) (:floors pos))]))))
 
-(defn positionNotVisited [visited pos]
-  (not (contains? visited (pairs pos))))
+(defn positionNotVisited [pos]
+  (not (contains? @visited (pairs pos))))
 
-(defn positionValid [visited pos]
+(defn positionValid [pos]
   (and
-    (positionNotVisited visited pos)
-    (every? floorValid? (:floors pos))))
-
+   (positionNotVisited pos)
+   (every? floorValid? (:floors pos))))
 
 (defn applyMove [from [f to] things]
   (let [newPos (assoc from :e to)
@@ -110,7 +95,7 @@
                (concat (map (fn [thing] [thing]) t)
                        (combo/combinations things 2))))))))
 
-(defn possiblePositions [visited pos]
+(defn possiblePositions [pos]
   (let [e (:e pos)
         things (nth (:floors pos) e)
         paths (cond
@@ -123,12 +108,7 @@
     (mapcat (fn [p]
               (->> subs
                    (map (fn [s] (applyMove pos [e p] (set s))))
-                   ;something like this - but we need to reorganise a bit
-                   ;(reduce (fn [v p]
-                   ;          (if (positionNotVisited v p)
-                   ;            v
-                   ;            (conj v (pairs p)))) visited)
-                   (filter (fn [c] (positionValid visited c)))) 
+                   (filter (fn [c] (positionValid c)))) 
               ) paths)))
 
 (defn complete? [pos]
@@ -139,26 +119,32 @@
       (empty? (nth f 1))
       (empty? (nth f 2)))))
 
-(defn evaluatePos [[foundSolution visited nextLevel] pos]
+(defn evaluatePos [[foundSolution nextLevel] pos]
   (if foundSolution
-    [foundSolution visited nextLevel]
+    [foundSolution nextLevel]
     (if (complete? pos)
-      [true visited nextLevel]
-      (let [v (conj visited (pairs pos))
-            n (into nextLevel 
-                    (possiblePositions v pos))]
-        [foundSolution v n]))))
+      [true nextLevel]
+      (do
+        (swap! visited conj (pairs pos))
+        (let [pp (possiblePositions pos)
+              [_ up] (reduce (fn [[hashes positions] p] 
+                           (let [ser (pairs p)]
+                             (if (contains? hashes ser)
+                               [hashes positions]
+                               [(conj hashes ser) (conj positions p)]))) [#{} #{}] pp)
+              n (into nextLevel up)]
+          [foundSolution n]) ))))
 
 (defn solution []
+  (reset! visited #{})
   (loop [depth 0
-         positions #{ip1} 
-         visited #{}]
-    (prn (str "(" depth "," (count positions) "," (count visited) ")"))
+         positions #{ip1} ]
+    (prn (str "(" depth "," (count positions) "," (count @visited) ")"))
     ;can only really get this far in at the moment
     (if (> depth 100)
       depth
      (let 
-      [[f v n] (reduce evaluatePos [false visited #{}] positions)]
+      [[f n] (reduce evaluatePos [false #{}] positions)]
       (if f
         depth
-        (recur (+ 1 depth) n v))))))
+        (recur (+ 1 depth) n))))))
