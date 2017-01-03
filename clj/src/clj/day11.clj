@@ -65,22 +65,28 @@
 (defn positive? [n]
   (>= n 0))
 
+(defn chipCount [f]
+  (count (filter chip? f)))
+
+(defn generatorCount [f]
+  (count (filter generator? f)))
+
 (def pairs 
   (memoize 
     (fn [pos]
       (let [f (:floors pos)]
-        (str [(:e pos)
-               (map #(reduce + %1) f)])))))
+        [(:e pos)
+               (map (fn [flr]
+                      [(chipCount flr) (generatorCount flr)]
+                      ) f)]))))
 
 (defn positionNotVisited [visited pos]
   (not (contains? visited (pairs pos))))
 
-(def positionValid
-  (memoize 
-       (fn [visited pos]
-         (and
-           (positionNotVisited visited pos)
-           (every? floorValid? (:floors pos))))))
+(defn positionValid [visited pos]
+  (and
+    (positionNotVisited visited pos)
+    (every? floorValid? (:floors pos))))
 
 
 (defn applyMove [from [f to] things]
@@ -117,6 +123,11 @@
     (mapcat (fn [p]
               (->> subs
                    (map (fn [s] (applyMove pos [e p] (set s))))
+                   ;something like this - but we need to reorganise a bit
+                   ;(reduce (fn [v p]
+                   ;          (if (positionNotVisited v p)
+                   ;            v
+                   ;            (conj v (pairs p)))) visited)
                    (filter (fn [c] (positionValid visited c)))) 
               ) paths)))
 
