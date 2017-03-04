@@ -1,9 +1,8 @@
 module Test.Main where
 
 import Prelude
-import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Console (CONSOLE, log)
+import Day1 (answer)
+import Test.Assert (assert)
 
-main :: forall e. Eff (console :: CONSOLE | e) Unit
 main = do
-  log "You should add some tests."
+  assert (answer == 271)
