@@ -7,6 +7,7 @@ import Data.Int (fromString)
 import Data.List (List, foldl)
 import Data.Maybe (fromMaybe)
 import Data.Newtype (overF)
+import Data.Show (class Show)
 import Data.String (Pattern(..), split, take, drop)
 
 input :: String
@@ -60,20 +61,20 @@ translateLeft South = East
 translateLeft East = North
 
 moveRight :: State -> State
-moveRight  { facing, pos } = { facing : translateRight facing, pos }
+moveRight  s = s { facing = translateRight s.facing  }
 
 moveLeft :: State -> State
-moveLeft  { facing, pos } = { facing : translateLeft facing, pos }
+moveLeft  s = s { facing = translateLeft s.facing  }
 
 changePos :: Int -> State -> State
-changePos n { facing, pos : {x, y}} =
+changePos n { facing, pos } =
     let 
         p = 
             case facing of 
-                North -> { x, y : y + n }
-                East -> { x : x + n, y }
-                South -> { x, y : y - n }
-                West -> { x : x - n, y }
+                North -> pos { y = pos.y + n }
+                East -> pos { x = pos.x + n }
+                South -> pos { y = pos.y - n }
+                West -> pos { x = pos.x - n }
     in
         { facing, pos : p } 
 
