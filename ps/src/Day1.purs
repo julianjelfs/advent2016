@@ -1,11 +1,13 @@
 module Day1 where
    
 import Prelude
-import Data.List (List, foldl)
 import Data.Tuple
-import Data.String (Pattern(..), split, take, drop)
+import Control.Bind ((=<<))
 import Data.Int (fromString)
+import Data.List (List, foldl)
 import Data.Maybe (fromMaybe)
+import Data.Newtype (overF)
+import Data.String (Pattern(..), split, take, drop)
 
 input :: String
 input =
@@ -45,35 +47,41 @@ toTuple instr =
   in      
       Tuple d n
 
-moveRight :: Direction -> Direction
-moveRight North = East
-moveRight East = South
-moveRight South = West
-moveRight West = North
+translateRight :: Direction -> Direction
+translateRight North = East
+translateRight East = South
+translateRight South = West
+translateRight West = North
 
-moveLeft :: Direction -> Direction
-moveLeft North = West
-moveLeft West = South
-moveLeft South = East
-moveLeft East = North
+translateLeft :: Direction -> Direction
+translateLeft North = West
+translateLeft West = South
+translateLeft South = East
+translateLeft East = North
 
-changePos :: Direction -> Int -> Coord -> Coord
-changePos North n {x,y} = {x:x, y:y+n}
-changePos East n {x,y} = {x:x+n, y:y}
-changePos South n {x,y} = {x:x, y:y-n}
-changePos West n {x,y} = {x:x-n, y:y}
+moveRight :: State -> State
+moveRight  { facing, pos } = { facing : translateRight facing, pos }
+
+moveLeft :: State -> State
+moveLeft  { facing, pos } = { facing : translateLeft facing, pos }
+
+changePos :: Int -> State -> State
+changePos n { facing, pos : {x, y}} =
+    let 
+        p = 
+            case facing of 
+                North -> { x, y : y + n }
+                East -> { x : x + n, y }
+                South -> { x, y : y - n }
+                West -> { x : x - n, y }
+    in
+        { facing, pos : p } 
 
 move :: State -> (Tuple String Int) -> State
-move {facing, pos} (Tuple "R" n) = 
-    let 
-        d = moveRight facing
-    in
-        { facing : d, pos : changePos d n pos }
-move {facing, pos} (Tuple "L" n) = 
-    let 
-        d = moveLeft facing
-    in
-        { facing : d, pos : changePos d n pos }
+move state (Tuple "R" n) = 
+    moveRight state # changePos n
+move state (Tuple "L" n) = 
+    moveLeft state # changePos n
 move state _ = state
 
 parseInstructions :: String -> Array (Tuple String Int)
@@ -86,7 +94,17 @@ distance {pos : {x,y}} =
 
 processInstructions :: String -> Int
 processInstructions inp =
-    distance $ foldl move initialState $ parseInstructions inp 
+    parseInstructions inp
+        # foldl move initialState
+        # distance
+
+partOne :: Int
+partOne =
+    processInstructions input
+
+partTwo :: Int
+partTwo =
+    processInstructions input
 
 showState {facing, pos : { x, y }} =
     (case facing of
