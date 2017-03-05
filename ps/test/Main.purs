@@ -1,8 +1,8 @@
 module Test.Main where
 
 import Prelude
-import Day1 (answer)
+import Day1 (processInstructions, input)
 import Test.Assert (assert)
 
 main = do
-  assert (answer == 271)
+    assert (processInstructions input == 271)
